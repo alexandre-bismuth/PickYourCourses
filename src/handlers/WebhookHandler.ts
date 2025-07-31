@@ -2961,7 +2961,7 @@ export class WebhookHandler {
       const reviewNumber = (currentPage - 1) * 5 + index + 1;
       keyboard.push([
         {
-          text: `📝 Review ${reviewNumber}`,
+          text: `📝 Review #${reviewNumber}`,
           callback_data: `manage_review_${review.reviewId}`,
         },
       ]);
@@ -3173,14 +3173,12 @@ export class WebhookHandler {
         );
       }
 
-      // Show success message briefly
-      await this.bot.answerCallbackQuery(data, {
-        text: `Vote ${voteType === "up" ? "👍" : "👎"} recorded!`,
-        show_alert: false,
-      });
+      // Vote processed successfully - no need to show additional message
+      // The callback query is already acknowledged by the main handler
     } catch (error: any) {
       console.error("Vote callback failed:", error);
-
+      
+      // Send error message to chat instead of trying to answer callback query again
       let errorMessage = "Failed to record vote.";
       if (error.message.includes("own reviews")) {
         errorMessage = "You cannot vote on your own reviews.";
@@ -3188,10 +3186,7 @@ export class WebhookHandler {
         errorMessage = "Cannot vote on deleted reviews.";
       }
 
-      await this.bot.answerCallbackQuery(data, {
-        text: errorMessage,
-        show_alert: true,
-      });
+      await this.sendErrorMessage(chatId, errorMessage);
     }
   }
 
@@ -3415,10 +3410,16 @@ export class WebhookHandler {
           }
         }
 
+        // Add "(you)" if this is the current user's review
+        const isCurrentUserReview = review.userId === userId;
+        if (isCurrentUserReview) {
+          authorText += " (you)";
+        }
+
         const netVotes = review.upvotes - review.downvotes;
         const voteText = netVotes > 0 ? `+${netVotes}` : netVotes.toString();
 
-        message += `**Review ${reviewNumber}** by ${authorText} (${voteText} votes)\n`;
+        message += `**Review ${reviewNumber}** by ${authorText}: ${voteText} votes\n`;
         message += `⭐ Overall: ${review.ratings.overall}/5 | Quality: ${review.ratings.quality}/5 | Difficulty: ${review.ratings.difficulty}/5\n`;
 
         if (review.text) {

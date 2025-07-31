@@ -200,7 +200,7 @@ export class ReviewService {
   /**
    * Vote on a review
    */
-  async voteOnReview(userId: string, reviewId: string, voteType: 'up' | 'down'): Promise<void> {
+  async voteOnReview(userId: string, reviewId: string, voteType: 'up' | 'down'): Promise<'created' | 'updated' | 'removed'> {
     // Verify user exists (create if needed)
     await this.userRepository.getOrCreate(userId);
 
@@ -218,15 +218,8 @@ export class ReviewService {
       throw new ReviewValidationError('Users cannot vote on their own reviews');
     }
 
-    try {
-      await this.reviewRepository.voteOnReview(userId, reviewId, voteType);
-    } catch (error: any) {
-      if (error.message === 'Vote removed') {
-        // Vote was removed, this is expected behavior
-        return;
-      }
-      throw error;
-    }
+    const result = await this.reviewRepository.voteOnReview(userId, reviewId, voteType);
+    return result.action;
   }
 
   /**

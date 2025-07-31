@@ -58,7 +58,7 @@ export class VoteRepository extends AbstractRepository<Vote, string> {
   /**
    * Cast or update a vote
    */
-  async castVote(userId: string, reviewId: string, voteType: 'up' | 'down'): Promise<Vote> {
+  async castVote(userId: string, reviewId: string, voteType: 'up' | 'down'): Promise<{ action: 'created' | 'updated' | 'removed'; vote?: Vote }> {
     // Check if user already voted
     const existingVote = await this.getUserVote(userId, reviewId);
     
@@ -67,10 +67,11 @@ export class VoteRepository extends AbstractRepository<Vote, string> {
       if (existingVote.voteType === voteType) {
         // Same vote type, remove the vote
         await this.delete(existingVote.voteId);
-        throw new Error('Vote removed');
+        return { action: 'removed' };
       } else {
         // Different vote type, update it
-        return this.update(existingVote.voteId, { voteType });
+        const updatedVote = await this.update(existingVote.voteId, { voteType });
+        return { action: 'updated', vote: updatedVote };
       }
     } else {
       // Create new vote
@@ -82,7 +83,8 @@ export class VoteRepository extends AbstractRepository<Vote, string> {
         createdAt: new Date().toISOString()
       };
       
-      return this.create(vote);
+      const createdVote = await this.create(vote);
+      return { action: 'created', vote: createdVote };
     }
   }
 

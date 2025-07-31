@@ -186,16 +186,8 @@ export class ReviewRepository extends AbstractRepository<Review, string> {
   /**
    * Vote on a review
    */
-  async voteOnReview(userId: string, reviewId: string, voteType: 'up' | 'down'): Promise<void> {
-    try {
-      await this.voteRepository.castVote(userId, reviewId, voteType);
-    } catch (error: any) {
-      if (error.message === 'Vote removed') {
-        // Vote was removed, this is expected behavior
-        return;
-      }
-      throw error;
-    }
+  async voteOnReview(userId: string, reviewId: string, voteType: 'up' | 'down'): Promise<{ action: 'created' | 'updated' | 'removed'; vote?: any }> {
+    return await this.voteRepository.castVote(userId, reviewId, voteType);
   }
 
   /**

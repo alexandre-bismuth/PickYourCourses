@@ -258,7 +258,7 @@ export class UIComponents {
 
       keyboard.push([
         {
-          text: `Review ${reviewNumber}: ${upvoteText} ${review.upvotes}`,
+          text: `Review #${reviewNumber}: ${upvoteText} ${review.upvotes}`,
           callback_data: `vote_${review.reviewId}_up`,
         },
         {
