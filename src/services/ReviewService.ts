@@ -56,11 +56,8 @@ export class ReviewService {
     // Validate input
     this.validateReviewInput(input);
 
-    // Verify user exists
-    const user = await this.userRepository.get(input.userId);
-    if (!user) {
-      throw new ReviewValidationError('User not found');
-    }
+    // Verify user exists (create if needed)
+    await this.userRepository.getOrCreate(input.userId);
 
     // Verify course exists
     const course = await this.courseRepository.get(input.courseId);
@@ -178,11 +175,8 @@ export class ReviewService {
     reason?: string;
     existingReview?: Review;
   }> {
-    // Check if user exists
-    const user = await this.userRepository.get(userId);
-    if (!user) {
-      return { canReview: false, reason: 'User not found' };
-    }
+    // Check if user exists (create if needed)
+    await this.userRepository.getOrCreate(userId);
 
     // Check if course exists
     const course = await this.courseRepository.get(courseId);
@@ -207,11 +201,8 @@ export class ReviewService {
    * Vote on a review
    */
   async voteOnReview(userId: string, reviewId: string, voteType: 'up' | 'down'): Promise<void> {
-    // Verify user exists
-    const user = await this.userRepository.get(userId);
-    if (!user) {
-      throw new ReviewValidationError('User not found');
-    }
+    // Verify user exists (create if needed)
+    await this.userRepository.getOrCreate(userId);
 
     // Verify review exists and is not deleted
     const review = await this.reviewRepository.get(reviewId);

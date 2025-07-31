@@ -14,7 +14,6 @@ import {
   CallbackQuery,
   TelegramUser,
   CourseCategory,
-  User,
 } from "../models";
 
 /**
@@ -1769,11 +1768,7 @@ export class WebhookHandler {
         await this.showReviewConfirmation(userId, chatId, messageId);
       } else {
         // For public reviews, check if user has profile information
-        const user = await this.userRepository.get(userId) as User & {
-          firstName?: string;
-          lastName?: string;
-          promotion?: string;
-        };
+        const user = await this.userRepository.getOrCreate(userId);
 
         if (user?.name && user?.promotion) {
           // User already has profile information, proceed to confirmation
@@ -3371,10 +3366,7 @@ export class WebhookHandler {
           // Get reviewer information for public reviews
           let reviewerInfo = null;
           if (!review.anonymous) {
-            const reviewer = await this.userRepository.get(review.userId) as User & {
-              name?: string;
-              promotion?: string;
-            };
+            const reviewer = await this.userRepository.getOrCreate(review.userId);
             if (reviewer?.name && reviewer?.promotion) {
               reviewerInfo = {
                 name: reviewer.name,

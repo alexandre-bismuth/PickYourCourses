@@ -5,8 +5,6 @@ export interface User {
   email: string;
   name?: string;                // Full name for public reviews
   promotion?: string;           // Promotion/year for public reviews
-  isAdmin: boolean;
-  isSuspended?: boolean;
   createdAt: string;
   lastActive: string;
 }

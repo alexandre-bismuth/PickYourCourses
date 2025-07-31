@@ -8,7 +8,8 @@ import { TABLE_NAMES } from '../schemas';
 export interface User {
   telegramId: string;
   email: string;
-  isSuspended?: boolean;
+  name?: string;
+  promotion?: string;
   createdAt: string;
   lastActive: string;
 }
@@ -48,6 +49,26 @@ export class UserRepository extends AbstractRepository<User, string> {
   }
 
   /**
+   * Get or create a user record
+   */
+  async getOrCreate(telegramId: string, email?: string): Promise<User> {
+    const existing = await this.get(telegramId);
+    if (existing) {
+      return existing;
+    }
+
+    // Create new user
+    const newUser: User = {
+      telegramId,
+      email: email || `${telegramId}@telegram.local`, // Default email if not provided
+      createdAt: new Date().toISOString(),
+      lastActive: new Date().toISOString()
+    };
+
+    return this.create(newUser);
+  }
+
+  /**
    * Update user profile information
    */
   async updateProfile(telegramId: string, profile: {
@@ -55,27 +76,17 @@ export class UserRepository extends AbstractRepository<User, string> {
     promotion?: string;
   }): Promise<User> {
     const updates: Partial<User> = {
-      ...profile,
       lastActive: new Date().toISOString()
     };
 
+    if (profile.name !== undefined) {
+      updates.name = profile.name;
+    }
+    if (profile.promotion !== undefined) {
+      updates.promotion = profile.promotion;
+    }
+
     return this.update(telegramId, updates);
-  }
-
-  /**
-   * Get all admin users
-   */
-  async getAdmins(): Promise<User[]> {
-    const params: DocumentClient.ScanInput = {
-      TableName: this.tableName,
-      FilterExpression: 'isAdmin = :isAdmin',
-      ExpressionAttributeValues: {
-        ':isAdmin': true
-      }
-    };
-
-    const result = await this.documentClient.scan(params).promise();
-    return result.Items as User[] || [];
   }
 
   protected buildKey(telegramId: string): any {
