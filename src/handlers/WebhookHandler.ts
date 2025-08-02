@@ -2436,54 +2436,19 @@ export class WebhookHandler {
         })
       );
 
-      // Build message
-      let message = `📝 **My Reviews** (${userReviews.length} total)\n\n`;
+      // Build header message
+      const headerMessage = `📝 **My Reviews** (${userReviews.length} total)\n\n`;
 
-      reviewsWithCourseInfo.forEach((review, index) => {
-        const reviewNumber = startIndex + index + 1;
-        const createdDate = new Date(review.createdAt).toLocaleDateString();
-        const visibilityIcon = review.anonymous ? "👤" : "👥";
-        const visibilityText = review.anonymous ? "Anonymous" : "Public";
-
-        // Truncate review text for display
-        const displayText = review.text
-          ? review.text.length > 100
-            ? `${review.text.substring(0, 100)}... `
-            : review.text
-          : "_No text provided_";
-        message += `**${reviewNumber}. ${review.categoryEmoji} ${review.courseId} - ${review.courseName}**\n`;
-        message += `⭐ Overall: ${"⭐".repeat(
-          review.ratings.overall
-        )}${"☆".repeat(5 - review.ratings.overall)} (${review.ratings.overall
-          }.0)\n`;
-        message += `📅 Posted: ${createdDate}\n`;
-        message += `${visibilityIcon} ${visibilityText}\n`;
-        if (review.text) {
-          message += `💬 ${displayText}\n`;
-        }
-        message += `\n`;
-      });
-
-      // Create keyboard with review management buttons
-      const keyboard = this.createMyReviewsKeyboard(
-        pageReviews,
+      // Send reviews with full text, splitting into multiple messages if needed
+      await this.sendMyReviewsWithFullText(
+        chatId,
+        headerMessage,
+        reviewsWithCourseInfo,
+        startIndex,
         page,
-        totalPages
+        totalPages,
+        messageId
       );
-
-      if (messageId) {
-        await this.bot.editMessageText(message, {
-          chat_id: chatId,
-          message_id: messageId,
-          parse_mode: "Markdown",
-          reply_markup: keyboard,
-        });
-      } else {
-        await this.bot.sendMessage(chatId, message, {
-          parse_mode: "Markdown",
-          reply_markup: keyboard,
-        });
-      }
     } catch (error) {
       console.error("My reviews callback failed:", error);
       await this.sendErrorMessage(chatId, "Failed to load your reviews.");
@@ -3385,72 +3350,278 @@ export class WebhookHandler {
         page
       );
 
-      // Build message with course info and reviews
+      // Build header message with course info
       const categoryEmoji = UIComponents.getCategoryEmoji(
         courseDetails.category
       );
-      let message = `📚 **${categoryEmoji} ${courseDetails.courseId} - ${courseDetails.name}**\n\n`;
-      message += `📝 **Reviews (${reviews.length})**\n`;
-      message += `Page ${pagination.currentPage} of ${pagination.totalPages}\n\n`;
+      const headerMessage = `📚 **${categoryEmoji} ${courseDetails.courseId} - ${courseDetails.name}**\n\n` +
+        `📝 **Reviews (${reviews.length})**\n` +
+        `Page ${pagination.currentPage} of ${pagination.totalPages}\n\n`;
 
-      // Add individual reviews
+      // Prepare individual reviews
       const startIndex = (page - 1) * 5;
       const endIndex = Math.min(startIndex + 5, reviews.length);
       const pageReviews = reviewsWithUserVotes.slice(startIndex, endIndex);
 
-      pageReviews.forEach((review, index) => {
-        const reviewNumber = startIndex + index + 1;
-        let authorText = "Anonymous";
-
-        if (!review.anonymous) {
-          if (review.reviewerInfo?.name && review.reviewerInfo?.promotion) {
-            authorText = `${review.reviewerInfo.name} (${review.reviewerInfo.promotion})`;
-          } else {
-            authorText = "Student"; // Fallback for old reviews without profile info
-          }
-        }
-
-        // Add "(you)" if this is the current user's review
-        const isCurrentUserReview = review.userId === userId;
-        if (isCurrentUserReview) {
-          authorText += " (you)";
-        }
-
-        const netVotes = review.upvotes - review.downvotes;
-        const voteText = netVotes > 0 ? `+${netVotes}` : netVotes.toString();
-
-        message += `**Review ${reviewNumber}** by ${authorText}: ${voteText} votes\n`;
-        message += `⭐ Overall: ${review.ratings.overall}/5 | Quality: ${review.ratings.quality}/5 | Difficulty: ${review.ratings.difficulty}/5\n`;
-
-        if (review.text) {
-          const truncatedText =
-            review.text.length > 150
-              ? review.text.substring(0, 150) + "..."
-              : review.text;
-          message += `💬 "${truncatedText}"\n`;
-        }
-        message += "\n";
-      });
-
-      if (messageId) {
-        await this.bot.editMessageText(message, {
-          chat_id: chatId,
-          message_id: messageId,
-          reply_markup: keyboard,
-          parse_mode: "Markdown",
-        });
-      } else {
-        await this.bot.sendMessage(chatId, message, {
-          reply_markup: keyboard,
-          parse_mode: "Markdown",
-        });
-      }
+      // Send reviews with full text, splitting into multiple messages if needed
+      await this.sendReviewsWithFullText(
+        chatId,
+        headerMessage,
+        pageReviews,
+        startIndex,
+        userId,
+        keyboard,
+        messageId
+      );
     } catch (error) {
       console.error("Display reviews failed:", error);
       await this.sendErrorMessage(
         chatId,
         "Failed to load reviews. Please try again."
       );
+    }
+  }
+
+  /**
+   * Send reviews with full text, splitting into multiple messages if needed
+   */
+  private async sendReviewsWithFullText(
+    chatId: number,
+    headerMessage: string,
+    pageReviews: any[],
+    startIndex: number,
+    userId: string,
+    keyboard: any,
+    messageId?: number
+  ): Promise<void> {
+    const TELEGRAM_MESSAGE_LIMIT = 4000; // Leave some buffer from the 4096 limit
+    const messages: string[] = [];
+    let currentMessage = headerMessage;
+
+    for (let index = 0; index < pageReviews.length; index++) {
+      const review = pageReviews[index];
+      const reviewNumber = startIndex + index + 1;
+      let authorText = "Anonymous";
+
+      if (!review.anonymous) {
+        if (review.reviewerInfo?.name && review.reviewerInfo?.promotion) {
+          authorText = `${review.reviewerInfo.name} (${review.reviewerInfo.promotion})`;
+        } else {
+          authorText = "Student"; // Fallback for old reviews without profile info
+        }
+      }
+
+      // Add "(you)" if this is the current user's review
+      const isCurrentUserReview = review.userId === userId;
+      if (isCurrentUserReview) {
+        authorText += " (you)";
+      }
+
+      const netVotes = review.upvotes - review.downvotes;
+      const voteText = netVotes > 0 ? `+${netVotes}` : netVotes.toString();
+
+      let reviewText = `**Review ${reviewNumber}** by ${authorText}: ${voteText} votes\n`;
+      reviewText += `⭐ Overall: ${review.ratings.overall}/5 | Quality: ${review.ratings.quality}/5 | Difficulty: ${review.ratings.difficulty}/5\n`;
+
+      if (review.text) {
+        reviewText += `💬 "${review.text}"\n`;
+      }
+      reviewText += "\n";
+
+      // Check if adding this review would exceed the message limit
+      if (currentMessage.length + reviewText.length > TELEGRAM_MESSAGE_LIMIT) {
+        // Save current message and start a new one
+        messages.push(currentMessage);
+        currentMessage = reviewText;
+      } else {
+        currentMessage += reviewText;
+      }
+    }
+
+    // Add the last message
+    if (currentMessage.length > headerMessage.length) {
+      messages.push(currentMessage);
+    }
+
+    // Send messages
+    if (messages.length === 0) {
+      // No reviews to show, just send header
+      if (messageId) {
+        await this.bot.editMessageText(headerMessage, {
+          chat_id: chatId,
+          message_id: messageId,
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      } else {
+        await this.bot.sendMessage(chatId, headerMessage, {
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      }
+    } else if (messages.length === 1) {
+      // Single message, use edit/send as before
+      if (messageId) {
+        await this.bot.editMessageText(messages[0], {
+          chat_id: chatId,
+          message_id: messageId,
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      } else {
+        await this.bot.sendMessage(chatId, messages[0], {
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      }
+    } else {
+      // Multiple messages needed
+      if (messageId) {
+        // Edit the original message with the first part
+        await this.bot.editMessageText(messages[0], {
+          chat_id: chatId,
+          message_id: messageId,
+          parse_mode: "Markdown",
+        });
+      } else {
+        // Send the first message
+        await this.bot.sendMessage(chatId, messages[0], {
+          parse_mode: "Markdown",
+        });
+      }
+
+      // Send additional messages (except the last one)
+      for (let i = 1; i < messages.length - 1; i++) {
+        await this.bot.sendMessage(chatId, messages[i], {
+          parse_mode: "Markdown",
+        });
+      }
+
+      // Send the last message with the keyboard
+      await this.bot.sendMessage(chatId, messages[messages.length - 1], {
+        reply_markup: keyboard,
+        parse_mode: "Markdown",
+      });
+    }
+  }
+
+  /**
+   * Send My Reviews with full text, splitting into multiple messages if needed
+   */
+  private async sendMyReviewsWithFullText(
+    chatId: number,
+    headerMessage: string,
+    reviewsWithCourseInfo: any[],
+    startIndex: number,
+    page: number,
+    totalPages: number,
+    messageId?: number
+  ): Promise<void> {
+    const TELEGRAM_MESSAGE_LIMIT = 4000; // Leave some buffer from the 4096 limit
+    const messages: string[] = [];
+    let currentMessage = headerMessage;
+
+    reviewsWithCourseInfo.forEach((review, index) => {
+      const reviewNumber = startIndex + index + 1;
+      const createdDate = new Date(review.createdAt).toLocaleDateString();
+      const visibilityIcon = review.anonymous ? "👤" : "👥";
+      const visibilityText = review.anonymous ? "Anonymous" : "Public";
+
+      let reviewText = `**${reviewNumber}. ${review.categoryEmoji} ${review.courseId} - ${review.courseName}**\n`;
+      reviewText += `⭐ Overall: ${"⭐".repeat(
+        review.ratings.overall
+      )}${"☆".repeat(5 - review.ratings.overall)} (${review.ratings.overall}.0)\n`;
+      reviewText += `📅 Posted: ${createdDate}\n`;
+      reviewText += `${visibilityIcon} ${visibilityText}\n`;
+      
+      if (review.text) {
+        reviewText += `💬 ${review.text}\n`;
+      } else {
+        reviewText += `💬 _No text provided_\n`;
+      }
+      reviewText += `\n`;
+
+      // Check if adding this review would exceed the message limit
+      if (currentMessage.length + reviewText.length > TELEGRAM_MESSAGE_LIMIT) {
+        // Save current message and start a new one
+        messages.push(currentMessage);
+        currentMessage = reviewText;
+      } else {
+        currentMessage += reviewText;
+      }
+    });
+
+    // Add the last message
+    if (currentMessage.length > headerMessage.length) {
+      messages.push(currentMessage);
+    }
+
+    // Create keyboard with review management buttons
+    const keyboard = this.createMyReviewsKeyboard(
+      reviewsWithCourseInfo,
+      page,
+      totalPages
+    );
+
+    // Send messages
+    if (messages.length === 0) {
+      // No reviews to show, just send header
+      if (messageId) {
+        await this.bot.editMessageText(headerMessage, {
+          chat_id: chatId,
+          message_id: messageId,
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      } else {
+        await this.bot.sendMessage(chatId, headerMessage, {
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      }
+    } else if (messages.length === 1) {
+      // Single message, use edit/send as before
+      if (messageId) {
+        await this.bot.editMessageText(messages[0], {
+          chat_id: chatId,
+          message_id: messageId,
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      } else {
+        await this.bot.sendMessage(chatId, messages[0], {
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      }
+    } else {
+      // Multiple messages needed
+      if (messageId) {
+        // Edit the original message with the first part
+        await this.bot.editMessageText(messages[0], {
+          chat_id: chatId,
+          message_id: messageId,
+          parse_mode: "Markdown",
+        });
+      } else {
+        // Send the first message
+        await this.bot.sendMessage(chatId, messages[0], {
+          parse_mode: "Markdown",
+        });
+      }
+
+      // Send additional messages (except the last one)
+      for (let i = 1; i < messages.length - 1; i++) {
+        await this.bot.sendMessage(chatId, messages[i], {
+          parse_mode: "Markdown",
+        });
+      }
+
+      // Send the last message with the keyboard
+      await this.bot.sendMessage(chatId, messages[messages.length - 1], {
+        reply_markup: keyboard,
+        parse_mode: "Markdown",
+      });
     }
   }
 
