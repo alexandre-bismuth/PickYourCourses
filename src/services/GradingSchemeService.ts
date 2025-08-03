@@ -1,6 +1,5 @@
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { CourseRepository } from '../database/repositories/course';
-import { GradingHistoryRepository, GradingComponent, GradingSchemeHistory } from '../database/repositories/gradingHistory';
 import { Course, GradingScheme } from '../models';
 
 /**
@@ -18,78 +17,40 @@ export interface GradingSchemeValidation {
 export interface GradingSchemeModificationResult {
   success: boolean;
   course: Course;
-  historyEntry: GradingSchemeHistory;
   validation: GradingSchemeValidation;
 }
 
 /**
- * Service for managing grading schemes with validation and history tracking
+ * Service for managing grading schemes with validation
  */
 export class GradingSchemeService {
   private courseRepository: CourseRepository;
-  private gradingHistoryRepository: GradingHistoryRepository;
 
   constructor(documentClient: DocumentClient) {
     this.courseRepository = new CourseRepository(documentClient);
-    this.gradingHistoryRepository = new GradingHistoryRepository(documentClient);
   }
 
   /**
-   * Validate grading scheme components
+   * Validate grading scheme description
    */
-  validateGradingScheme(components: GradingComponent[]): GradingSchemeValidation {
+  validateGradingScheme(description: string): GradingSchemeValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check if components array is empty
-    if (!components || components.length === 0) {
-      errors.push('Grading scheme must have at least one component');
+    // Check if description is empty
+    if (!description || description.trim() === '') {
+      errors.push('Grading scheme description cannot be empty');
       return { isValid: false, errors, warnings };
     }
 
-    // Validate each component
-    components.forEach((component, index) => {
-      if (!component.name || component.name.trim() === '') {
-        errors.push(`Component ${index + 1}: Name is required`);
-      }
-
-      if (typeof component.percentage !== 'number') {
-        errors.push(`Component ${index + 1}: Percentage must be a number`);
-      } else {
-        if (component.percentage <= 0) {
-          errors.push(`Component ${index + 1}: Percentage must be greater than 0`);
-        }
-        if (component.percentage > 100) {
-          errors.push(`Component ${index + 1}: Percentage cannot exceed 100`);
-        }
-      }
-    });
-
-    // Check for duplicate component names
-    const componentNames = components.map(c => c.name.trim().toLowerCase());
-    const duplicateNames = componentNames.filter((name, index) => componentNames.indexOf(name) !== index);
-    if (duplicateNames.length > 0) {
-      errors.push(`Duplicate component names found: ${[...new Set(duplicateNames)].join(', ')}`);
+    // Check description length
+    if (description.trim().length < 10) {
+      warnings.push('Grading scheme description is quite short - consider adding more detail');
     }
 
-    // Check if percentages sum to 100
-    const totalPercentage = components.reduce((sum, component) => sum + component.percentage, 0);
-    const tolerance = 0.01; // Allow small floating point errors
-
-    if (Math.abs(totalPercentage - 100) > tolerance) {
-      errors.push(`Total percentage must equal 100% (current: ${totalPercentage.toFixed(2)}%)`);
+    if (description.trim().length > 500) {
+      warnings.push('Grading scheme description is very long - consider making it more concise');
     }
-
-    // Warnings for best practices
-    if (components.length > 10) {
-      warnings.push('Consider consolidating grading components - more than 10 components may be confusing');
-    }
-
-    components.forEach(component => {
-      if (component.percentage < 5) {
-        warnings.push(`Component "${component.name}" has very low weight (${component.percentage}%) - consider if it's necessary`);
-      }
-    });
 
     return {
       isValid: errors.length === 0,
@@ -107,232 +68,86 @@ export class GradingSchemeService {
   }
 
   /**
-   * Update grading scheme for a course with validation and history tracking
+   * Update grading scheme for a course with validation
    */
   async updateGradingScheme(
     courseId: string,
-    components: GradingComponent[],
+    description: string,
     modifiedBy: string
   ): Promise<GradingSchemeModificationResult> {
     // Validate the new grading scheme
-    const validation = this.validateGradingScheme(components);
+    const validation = this.validateGradingScheme(description);
 
     if (!validation.isValid) {
       return {
         success: false,
         course: null as any,
-        historyEntry: null as any,
         validation
       };
     }
 
-    // Get current grading scheme for history tracking
-    const currentCourse = await this.courseRepository.get(courseId);
-    const previousComponents = currentCourse?.gradingScheme.components;
-
     // Update the course with new grading scheme
-    const updatedCourse = await this.courseRepository.updateGradingScheme(courseId, components, modifiedBy);
-
-    // Create history entry
-    const historyEntry = await this.gradingHistoryRepository.createHistoryEntry(
-      courseId,
-      components,
-      modifiedBy,
-      currentCourse ? 'UPDATE' : 'CREATE',
-      previousComponents
-    );
+    const updatedCourse = await this.courseRepository.updateGradingScheme(courseId, description, modifiedBy);
 
     return {
       success: true,
       course: updatedCourse,
-      historyEntry,
       validation
     };
   }
 
   /**
-   * Get grading scheme history for a course
-   */
-  async getGradingSchemeHistory(courseId: string): Promise<GradingSchemeHistory[]> {
-    return this.gradingHistoryRepository.getHistoryByCourse(courseId);
-  }
-
-  /**
-   * Get recent grading scheme modifications across all courses
-   */
-  async getRecentModifications(limit: number = 50): Promise<GradingSchemeHistory[]> {
-    return this.gradingHistoryRepository.getRecentModifications(limit);
-  }
-
-  /**
-   * Get modifications by a specific user
-   */
-  async getModificationsByUser(userId: string): Promise<GradingSchemeHistory[]> {
-    return this.gradingHistoryRepository.getModificationsByUser(userId);
-  }
-
-  /**
-   * Get modification statistics
-   */
-  async getModificationStats(): Promise<{
-    totalModifications: number;
-    modificationsByAction: Record<string, number>;
-    topModifiers: Array<{ userId: string; count: number }>;
-  }> {
-    return this.gradingHistoryRepository.getModificationStats();
-  }
-
-  /**
-   * Delete grading scheme (sets to default 100% final exam)
+   * Delete grading scheme (sets to default description)
    */
   async deleteGradingScheme(courseId: string, deletedBy: string): Promise<GradingSchemeModificationResult> {
-    // Get current grading scheme for history
-    const currentCourse = await this.courseRepository.get(courseId);
-    const previousComponents = currentCourse?.gradingScheme.components;
-
-    // Set default grading scheme (100% final exam)
-    const defaultComponents: GradingComponent[] = [
-      { name: 'Final Exam', percentage: 100 }
-    ];
+    // Set default grading scheme description
+    const defaultDescription = "No grading information available";
 
     // Update the course
-    const updatedCourse = await this.courseRepository.updateGradingScheme(courseId, defaultComponents, deletedBy);
-
-    // Create history entry for deletion
-    const historyEntry = await this.gradingHistoryRepository.createHistoryEntry(
-      courseId,
-      defaultComponents,
-      deletedBy,
-      'DELETE',
-      previousComponents
-    );
+    const updatedCourse = await this.courseRepository.updateGradingScheme(courseId, defaultDescription, deletedBy);
 
     return {
       success: true,
       course: updatedCourse,
-      historyEntry,
       validation: { isValid: true, errors: [], warnings: [] }
     };
   }
 
   /**
-   * Restore grading scheme from history
+   * Get suggested grading scheme descriptions based on course category
    */
-  async restoreGradingScheme(
-    courseId: string,
-    historyId: string,
-    restoredBy: string
-  ): Promise<GradingSchemeModificationResult> {
-    // Get the history entry to restore
-    const historyEntry = await this.gradingHistoryRepository.get(historyId);
-
-    if (!historyEntry || historyEntry.courseId !== courseId) {
-      throw new Error('History entry not found or does not belong to the specified course');
-    }
-
-    // Restore the grading scheme
-    return this.updateGradingScheme(courseId, historyEntry.components, restoredBy);
-  }
-
-  /**
-   * Compare two grading schemes
-   */
-  compareGradingSchemes(
-    scheme1: GradingComponent[],
-    scheme2: GradingComponent[]
-  ): {
-    added: GradingComponent[];
-    removed: GradingComponent[];
-    modified: Array<{
-      name: string;
-      oldPercentage: number;
-      newPercentage: number;
-    }>;
-    unchanged: GradingComponent[];
-  } {
-    const added: GradingComponent[] = [];
-    const removed: GradingComponent[] = [];
-    const modified: Array<{ name: string; oldPercentage: number; newPercentage: number }> = [];
-    const unchanged: GradingComponent[] = [];
-
-    // Create maps for easier comparison
-    const scheme1Map = new Map(scheme1.map(c => [c.name.toLowerCase(), c]));
-    const scheme2Map = new Map(scheme2.map(c => [c.name.toLowerCase(), c]));
-
-    // Find added and modified components
-    scheme2.forEach(component => {
-      const key = component.name.toLowerCase();
-      const oldComponent = scheme1Map.get(key);
-
-      if (!oldComponent) {
-        added.push(component);
-      } else if (oldComponent.percentage !== component.percentage) {
-        modified.push({
-          name: component.name,
-          oldPercentage: oldComponent.percentage,
-          newPercentage: component.percentage
-        });
-      } else {
-        unchanged.push(component);
-      }
-    });
-
-    // Find removed components
-    scheme1.forEach(component => {
-      const key = component.name.toLowerCase();
-      if (!scheme2Map.has(key)) {
-        removed.push(component);
-      }
-    });
-
-    return { added, removed, modified, unchanged };
-  }
-
-  /**
-   * Get suggested grading schemes based on course category
-   */
-  getSuggestedGradingSchemes(category: string): GradingComponent[][] {
-    const suggestions: Record<string, GradingComponent[][]> = {
+  getSuggestedGradingSchemes(category: string): string[] {
+    const suggestions: Record<string, string[]> = {
       'MAA': [
-        [
-          { name: 'Homework', percentage: 20 },
-          { name: 'Midterm', percentage: 30 },
-          { name: 'Final Exam', percentage: 50 }
-        ],
-        [
-          { name: 'Quizzes', percentage: 15 },
-          { name: 'Homework', percentage: 25 },
-          { name: 'Final Exam', percentage: 60 }
-        ]
+        "Homework (20%), Midterm (30%), Final Exam (50%)",
+        "Quizzes (15%), Homework (25%), Final Exam (60%)",
+        "100% Final Exam with bonus points for homework"
       ],
       'PHY': [
-        [
-          { name: 'Lab Reports', percentage: 25 },
-          { name: 'Midterm', percentage: 35 },
-          { name: 'Final Exam', percentage: 40 }
-        ],
-        [
-          { name: 'Lab Reports', percentage: 20 },
-          { name: 'Problem Sets', percentage: 20 },
-          { name: 'Final Exam', percentage: 60 }
-        ]
+        "Lab Reports (25%), Midterm (35%), Final Exam (40%)",
+        "Lab Reports (20%), Problem Sets (20%), Final Exam (60%)",
+        "Attendance (40%), Project (40%), Homework (20%)"
       ],
       'CSE': [
-        [
-          { name: 'Programming Assignments', percentage: 40 },
-          { name: 'Midterm', percentage: 25 },
-          { name: 'Final Project', percentage: 35 }
-        ],
-        [
-          { name: 'Programming Assignments', percentage: 30 },
-          { name: 'Midterm', percentage: 30 },
-          { name: 'Final Exam', percentage: 40 }
-        ]
+        "Programming Assignments (40%), Midterm (25%), Final Project (35%)",
+        "Programming Assignments (30%), Midterm (30%), Final Exam (40%)",
+        "100% Final Exam, no curve, bonus points possible"
+      ],
+      'CHE': [
+        "Lab reports, participation, tests, homework; optional final to improve grade"
+      ],
+      'HSS': [
+        "Essay on given topic",
+        "Group presentation + final essay, no exam",
+        "Attendance + participation + final presentation"
+      ],
+      'ECO': [
+        "Final exam with two sections",
+        "Midterm (40%), Final (60%)",
+        "Problem sets (30%), Final exam (70%)"
       ]
     };
 
-    return suggestions[category] || [
-      [{ name: 'Final Exam', percentage: 100 }]
-    ];
+    return suggestions[category] || ["No grading information available"];
   }
 }

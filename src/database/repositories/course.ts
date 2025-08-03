@@ -14,7 +14,7 @@ export interface GradingComponent {
  * Grading scheme with history
  */
 export interface GradingScheme {
-  components: GradingComponent[];
+  description: string;          // Free text description of grading scheme
   lastModified: string;
   modifiedBy: string;
 }
@@ -102,15 +102,13 @@ export class CourseRepository extends AbstractRepository<Course, string> {
   /**
    * Update grading scheme
    */
-  async updateGradingScheme(courseId: string, scheme: GradingComponent[], modifiedBy: string): Promise<Course> {
-    // Validate that percentages sum to 100
-    const totalPercentage = scheme.reduce((sum, component) => sum + component.percentage, 0);
-    if (Math.abs(totalPercentage - 100) > 0.01) {
-      throw new Error('Grading scheme percentages must sum to 100%');
+  async updateGradingScheme(courseId: string, description: string, modifiedBy: string): Promise<Course> {
+    if (!description || description.trim() === '') {
+      throw new Error('Grading scheme description cannot be empty');
     }
 
     const gradingScheme: GradingScheme = {
-      components: scheme,
+      description: description.trim(),
       lastModified: new Date().toISOString(),
       modifiedBy
     };
@@ -125,7 +123,7 @@ export class CourseRepository extends AbstractRepository<Course, string> {
     // For now, we only store the current grading scheme
     // In a full implementation, we might have a separate table for history
     const course = await this.get(courseId);
-    return course ? [course.gradingScheme] : [];
+    return course && course.gradingScheme ? [course.gradingScheme] : [];
   }
 
   /**

@@ -50,10 +50,7 @@ export interface Vote {
 }
 
 export interface GradingScheme {
-  components: Array<{
-    name: string;               // e.g., "Midterm", "Final", "Homework"
-    percentage: number;         // Must sum to 100
-  }>;
+  description: string;          // Free text description of grading scheme
   lastModified: string;
   modifiedBy: string;           // User ID - visible to admins for audit trail
 }
@@ -134,7 +131,7 @@ export enum CourseCategory {
   HSS = 'HSS',
   PDV = 'PDV',
   BIO = 'BIO',
-  CHEM = 'CHEM',
+  CHE = 'CHE',
   SPOFAL = 'SPOFAL',
   PRL = 'PRL'
 }

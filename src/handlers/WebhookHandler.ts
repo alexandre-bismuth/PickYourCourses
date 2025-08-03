@@ -78,7 +78,7 @@ export class WebhookHandler {
     this.reviewService = reviewService;
     this.courseService = courseService;
     this.userRepository = new UserRepository(
-      this.reviewService['reviewRepository']['documentClient']
+      this.reviewService["reviewRepository"]["documentClient"]
     );
     this.reviewEditHandler = new ReviewEditHandler(
       this.bot,
@@ -225,7 +225,8 @@ export class WebhookHandler {
         message += `Total messages sent: ${rateLimitResult.totalCount}/${rateLimitResult.totalLimit}`;
       }
 
-      message += "\n\nIf you believe this is an error, please contact Alexandre Bismuth (@alex_bsmth).";
+      message +=
+        "\n\nIf you believe this is an error, please contact Alexandre Bismuth (@alex_bsmth).";
 
       await this.bot.sendMessage(chatId, message);
     } catch (error) {
@@ -629,8 +630,8 @@ export class WebhookHandler {
         ...stateData.data,
         userProfile: {
           ...stateData.data.userProfile,
-          name
-        }
+          name,
+        },
       }
     );
 
@@ -641,9 +642,9 @@ export class WebhookHandler {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "❌ Cancel", callback_data: "cancel_review" }]
-          ]
-        }
+            [{ text: "❌ Cancel", callback_data: "cancel_review" }],
+          ],
+        },
       }
     );
   }
@@ -668,29 +669,25 @@ export class WebhookHandler {
 
     const userProfile = {
       ...stateData.data.userProfile,
-      promotion
+      promotion,
     };
 
     // Save user profile to database
     await this.userRepository.updateProfile(userId, userProfile);
 
     // Update state and proceed to confirmation
-    await this.stateManager.setState(
-      userId,
-      ConversationState.POSTING_REVIEW,
-      {
-        ...stateData.data,
-        step: "confirmation",
-        anonymous: false,
-        userProfile
-      }
-    );
+    await this.stateManager.setState(userId, ConversationState.POSTING_REVIEW, {
+      ...stateData.data,
+      step: "confirmation",
+      anonymous: false,
+      userProfile,
+    });
 
     await this.bot.sendMessage(
       chatId,
       `✅ Profile completed! (It will also be remembered for future reviews). \n\n**Name:** ${userProfile.name}\n**Promotion:** ${promotion}\n\nThis information will be displayed with your public reviews.`,
       {
-        parse_mode: "Markdown"
+        parse_mode: "Markdown",
       }
     );
 
@@ -707,13 +704,13 @@ export class WebhookHandler {
     await this.bot.sendMessage(
       chatId,
       "🎉 Welcome to PickYourCourses!\n\n" +
-      "📚 Your gateway to École Polytechnique course reviews.\n\n" +
-      "📖 This bot helps students:\n" +
-      "• 📚 Browse course reviews by category\n" +
-      "• ✍️ Share their own course experiences\n" +
-      "• ⭐ Rate courses on quality and difficulty\n" +
-      "• 🗳️ Vote on helpful reviews\n\n" +
-      "What would you like to do today?",
+        "📚 Your gateway to École Polytechnique course reviews.\n\n" +
+        "📖 This bot helps students:\n" +
+        "• 📚 Browse course reviews by category\n" +
+        "• ✍️ Share their own course experiences\n" +
+        "• ⭐ Rate courses on quality and difficulty\n" +
+        "• 🗳️ Vote on helpful reviews\n\n" +
+        "What would you like to do today?",
       {
         reply_markup: {
           inline_keyboard: [
@@ -953,7 +950,9 @@ export class WebhookHandler {
       const categoryEmoji = UIComponents.getCategoryEmoji(category);
       const message =
         `📚 **${categoryEmoji} ${category} Courses**\n\n` +
-        `Found ${courses.length} course${courses.length !== 1 ? "s" : ""} in this category.\n\n` +
+        `Found ${courses.length} course${
+          courses.length !== 1 ? "s" : ""
+        } in this category.\n\n` +
         "Select a course to view details and reviews:";
 
       if (messageId) {
@@ -1027,7 +1026,9 @@ export class WebhookHandler {
         message += `• Difficulty: ${UIComponents.formatStarRating(
           courseDetails.averageRatings.difficulty
         )}\n\n`;
-        message += `📊 Based on ${courseDetails.reviewCount} review${courseDetails.reviewCount !== 1 ? "s" : ""}\n\n`;
+        message += `📊 Based on ${courseDetails.reviewCount} review${
+          courseDetails.reviewCount !== 1 ? "s" : ""
+        }\n\n`;
       } else {
         message += "📊 **No reviews yet**\n\n";
         message +=
@@ -1037,13 +1038,10 @@ export class WebhookHandler {
       // Add grading scheme if available
       if (
         courseDetails.gradingScheme &&
-        courseDetails.gradingScheme.components.length > 0
+        courseDetails.gradingScheme.description
       ) {
         message += "💯 **Grading Scheme:**\n";
-        courseDetails.gradingScheme.components.forEach((component) => {
-          message += `• ${component.name}: ${component.percentage}%\n`;
-        });
-        message += "\n";
+        message += `${courseDetails.gradingScheme.description}\n\n`;
       }
 
       const keyboard = UIComponents.createCourseDetailsMenu(courseId);
@@ -1781,8 +1779,8 @@ export class WebhookHandler {
               anonymous: false,
               userProfile: {
                 name: user.name,
-                promotion: user.promotion
-              }
+                promotion: user.promotion,
+              },
             }
           );
 
@@ -1795,7 +1793,7 @@ export class WebhookHandler {
             {
               ...stateData.data,
               anonymous: false,
-              userProfile: {}
+              userProfile: {},
             }
           );
 
@@ -1806,8 +1804,8 @@ export class WebhookHandler {
 
           const keyboard = {
             inline_keyboard: [
-              [{ text: "❌ Cancel", callback_data: "cancel_review" }]
-            ]
+              [{ text: "❌ Cancel", callback_data: "cancel_review" }],
+            ],
           };
 
           if (messageId) {
@@ -1842,10 +1840,11 @@ export class WebhookHandler {
     const stateData = await this.stateManager.getState(userId);
     if (!stateData?.data) return;
 
-    const anonymityText = stateData.data.anonymous ? "🕶️ Anonymous" :
-      stateData.data.userProfile ?
-        `👤 ${stateData.data.userProfile.name} (${stateData.data.userProfile.promotion})` :
-        "👤 Public";
+    const anonymityText = stateData.data.anonymous
+      ? "🕶️ Anonymous"
+      : stateData.data.userProfile
+      ? `👤 ${stateData.data.userProfile.name} (${stateData.data.userProfile.promotion})`
+      : "👤 Public";
 
     const textReview = stateData.data.text
       ? `\n\n**Review Text:**\n${stateData.data.text}`
@@ -1955,17 +1954,13 @@ export class WebhookHandler {
         // --- Post-Submission Logic (State and Success Message) ---
         try {
           // Clear the posting state
-          await this.stateManager.setState(
-            userId,
-            ConversationState.MAIN_MENU
-          );
+          await this.stateManager.setState(userId, ConversationState.MAIN_MENU);
 
           const successMessage =
             `✅ Review Posted Successfully!\n\n` +
             `Thank you for sharing your experience with ${courseName}!\n\n` +
             `Your review will help other École Polytechnique students make informed course decisions.\n\n` +
-            `Visibility: ${anonymous ? "🕶️ Anonymous" : "👤 Public"
-            }`;
+            `Visibility: ${anonymous ? "🕶️ Anonymous" : "👤 Public"}`;
 
           const keyboard = {
             inline_keyboard: [
@@ -2154,8 +2149,8 @@ export class WebhookHandler {
         await this.bot.sendMessage(
           chatId,
           "❌ **Review text too long**\n\n" +
-          `Your review is ${text.length} characters long, but the maximum allowed is 2000 characters.\n\n` +
-          "Please shorten your review and try again:"
+            `Your review is ${text.length} characters long, but the maximum allowed is 2000 characters.\n\n` +
+            "Please shorten your review and try again:"
         );
         return;
       }
@@ -2179,7 +2174,9 @@ export class WebhookHandler {
         `Overall: ${"⭐".repeat(stateData.data.ratings.overall)}\n` +
         `Quality: ${"⭐".repeat(stateData.data.ratings.quality)}\n` +
         `Difficulty: ${"⭐".repeat(stateData.data.ratings.difficulty)}\n\n` +
-        `**Your Review:** ${text.substring(0, 100)}${text.length > 100 ? "..." : ""}\n\n` +
+        `**Your Review:** ${text.substring(0, 100)}${
+          text.length > 100 ? "..." : ""
+        }\n\n` +
         `Would you like to post this review anonymously?\n\n` +
         `• **Anonymous:** Other students won't see your name\n` +
         `• **Public:** Your name will be visible to other students`;
@@ -2311,7 +2308,9 @@ export class WebhookHandler {
         `Overall: ${"⭐".repeat(stateData.data.ratings.overall || 0)}\n` +
         `Quality: ${"⭐".repeat(stateData.data.ratings.quality || 0)}\n` +
         `Difficulty: ${"⭐".repeat(stateData.data.ratings.difficulty || 0)}\n` +
-        `Visibility: ${stateData.data.anonymous ? "🕶️ Anonymous" : "👤 Public"}\n\n` +
+        `Visibility: ${
+          stateData.data.anonymous ? "🕶️ Anonymous" : "👤 Public"
+        }\n\n` +
         `What would you like to edit?`;
 
       const keyboard = {
@@ -2327,7 +2326,9 @@ export class WebhookHandler {
             { text: "🕶️ Change Visibility", callback_data: "edit_anonymity" },
             {
               text: "🔙 Back to Confirmation",
-              callback_data: `review_anonymous_${stateData.data.anonymous ? "yes" : "no"}`,
+              callback_data: `review_anonymous_${
+                stateData.data.anonymous ? "yes" : "no"
+              }`,
             },
           ],
           [{ text: "❌ Cancel", callback_data: "cancel_review" }],
@@ -2515,7 +2516,9 @@ export class WebhookHandler {
       const message =
         `✏️ **Edit Anonymity Setting**\n\n` +
         `**${stateData.data.courseName}**\n\n` +
-        `Current setting: ${stateData.data.anonymous ? "🕶️ Anonymous" : "👤 Public"}\n\n` +
+        `Current setting: ${
+          stateData.data.anonymous ? "🕶️ Anonymous" : "👤 Public"
+        }\n\n` +
         `Choose your new anonymity setting:`;
 
       const keyboard = {
@@ -2530,7 +2533,9 @@ export class WebhookHandler {
           [
             {
               text: "🔙 Back to Confirmation",
-              callback_data: `review_anonymous_${stateData.data.anonymous ? "yes" : "no"}`,
+              callback_data: `review_anonymous_${
+                stateData.data.anonymous ? "yes" : "no"
+              }`,
             },
             { text: "❌ Cancel", callback_data: "cancel_review" },
           ],
@@ -2734,8 +2739,9 @@ export class WebhookHandler {
       )} (${review.ratings.quality}/5)\n`;
       message += `• Difficulty: ${"⭐".repeat(
         review.ratings.difficulty
-      )}${"☆".repeat(5 - review.ratings.difficulty)} (${review.ratings.difficulty
-        }/5)\n\n`;
+      )}${"☆".repeat(5 - review.ratings.difficulty)} (${
+        review.ratings.difficulty
+      }/5)\n\n`;
       message += `${visibilityIcon} **Visibility:** ${visibilityText}\n`;
       message += `📅 **Posted:** ${createdDate}\n\n`;
 
@@ -3142,7 +3148,7 @@ export class WebhookHandler {
       // The callback query is already acknowledged by the main handler
     } catch (error: any) {
       console.error("Vote callback failed:", error);
-      
+
       // Send error message to chat instead of trying to answer callback query again
       let errorMessage = "Failed to record vote.";
       if (error.message.includes("own reviews")) {
@@ -3221,7 +3227,9 @@ export class WebhookHandler {
       const categoryEmoji = UIComponents.getCategoryEmoji(category);
       const message =
         `📚 **${categoryEmoji} ${category} Courses**\n\n` +
-        `Found ${courses.length} course${courses.length !== 1 ? "s" : ""} in this category.\n\n` +
+        `Found ${courses.length} course${
+          courses.length !== 1 ? "s" : ""
+        } in this category.\n\n` +
         `Page ${pagination.currentPage} of ${pagination.totalPages}\n\n` +
         "Select a course to view details and reviews:";
 
@@ -3326,11 +3334,17 @@ export class WebhookHandler {
           // Get reviewer information for public reviews
           let reviewerInfo = null;
           if (!review.anonymous) {
-            const reviewer = await this.userRepository.getOrCreate(review.userId);
+            const reviewer = await this.userRepository.getOrCreate(
+              review.userId
+            );
             if (reviewer?.name && reviewer?.promotion) {
               reviewerInfo = {
                 name: reviewer.name,
-                promotion: reviewer.promotion
+                promotion: reviewer.promotion,
+              };
+            } else if (reviewer?.displayName) {
+              reviewerInfo = {
+                displayName: reviewer.displayName,
               };
             }
           }
@@ -3354,7 +3368,8 @@ export class WebhookHandler {
       const categoryEmoji = UIComponents.getCategoryEmoji(
         courseDetails.category
       );
-      const headerMessage = `📚 **${categoryEmoji} ${courseDetails.courseId} - ${courseDetails.name}**\n\n` +
+      const headerMessage =
+        `📚 **${categoryEmoji} ${courseDetails.courseId} - ${courseDetails.name}**\n\n` +
         `📝 **Reviews (${reviews.length})**\n` +
         `Page ${pagination.currentPage} of ${pagination.totalPages}\n\n`;
 
@@ -3406,6 +3421,8 @@ export class WebhookHandler {
       if (!review.anonymous) {
         if (review.reviewerInfo?.name && review.reviewerInfo?.promotion) {
           authorText = `${review.reviewerInfo.name} (${review.reviewerInfo.promotion})`;
+        } else if (review.reviewerInfo?.displayName) {
+          authorText = review.reviewerInfo.displayName;
         } else {
           authorText = "Student"; // Fallback for old reviews without profile info
         }
@@ -3530,10 +3547,12 @@ export class WebhookHandler {
       let reviewText = `**${reviewNumber}. ${review.categoryEmoji} ${review.courseId} - ${review.courseName}**\n`;
       reviewText += `⭐ Overall: ${"⭐".repeat(
         review.ratings.overall
-      )}${"☆".repeat(5 - review.ratings.overall)} (${review.ratings.overall}.0)\n`;
+      )}${"☆".repeat(5 - review.ratings.overall)} (${
+        review.ratings.overall
+      }.0)\n`;
       reviewText += `📅 Posted: ${createdDate}\n`;
       reviewText += `${visibilityIcon} ${visibilityText}\n`;
-      
+
       if (review.text) {
         reviewText += `💬 ${review.text}\n`;
       } else {

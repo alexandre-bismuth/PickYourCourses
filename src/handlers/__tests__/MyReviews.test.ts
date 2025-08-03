@@ -111,10 +111,7 @@ describe("My Reviews Functionality", () => {
         category: CourseCategory.MAA,
         description: "Mathematical Analysis course",
         gradingScheme: {
-          components: [
-            { name: "Final Exam", percentage: 60 },
-            { name: "Midterm", percentage: 40 },
-          ],
+          description: "Final Exam: 60%, Midterm: 40%",
           lastModified: "2024-01-01T00:00:00Z",
           modifiedBy: "admin",
         },
@@ -172,10 +169,7 @@ describe("My Reviews Functionality", () => {
         category: CourseCategory.MAA,
         description: "Mathematical Analysis course",
         gradingScheme: {
-          components: [
-            { name: "Final Exam", percentage: 60 },
-            { name: "Midterm", percentage: 40 },
-          ],
+          description: "Final Exam: 60%, Midterm: 40%",
           lastModified: "2024-01-01T00:00:00Z",
           modifiedBy: "admin",
         },
@@ -231,10 +225,7 @@ describe("My Reviews Functionality", () => {
         category: CourseCategory.MAA,
         description: "Mathematical Analysis course",
         gradingScheme: {
-          components: [
-            { name: "Final Exam", percentage: 60 },
-            { name: "Midterm", percentage: 40 },
-          ],
+          description: "Final Exam: 60%, Midterm: 40%",
           lastModified: "2024-01-01T00:00:00Z",
           modifiedBy: "admin",
         },

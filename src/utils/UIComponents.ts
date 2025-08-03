@@ -93,28 +93,22 @@ export class UIComponents {
   }
 
   /**
-   * Create course categories menu (page 2: HSS, PDV, BIO, CHEM, SPOFAL, PRL)
+   * Create course categories menu (page 2: HSS, PDV, BIO, CHE, SPOFAL, PRL)
    */
   static createCategoriesMenuPage2(): InlineKeyboardMarkup {
     const keyboard: InlineKeyboardButton[][] = [
       [
-        {
-          text: "📖 HSS - Humanities & Social Sciences",
-          callback_data: "category_HSS",
-        },
+        { text: "📖 HSS - Humanities & Social Sciences", callback_data: "category_HSS", },
+        { text: "🎯 PDV - Personal Development", callback_data: "category_PDV", },
       ],
       [
-        {
-          text: "🎯 PDV - Personal Development",
-          callback_data: "category_PDV",
-        },
         { text: "🧬 BIO - Biology", callback_data: "category_BIO" },
+        { text: "⚗️ CHE - Chemistry", callback_data: "category_CHE" },
       ],
       [
-        { text: "⚗️ CHEM - Chemistry", callback_data: "category_CHEM" },
+        { text: "🌍 PRL - Languages", callback_data: "category_PRL" },
         { text: "🏃 SPOFAL - Sports", callback_data: "category_SPOFAL" },
       ],
-      [{ text: "🌍 PRL - Languages", callback_data: "category_PRL" }],
       [{ text: "⬅️ Previous Page", callback_data: "categories_page_1" }],
       [{ text: "🏠 Main Menu", callback_data: "main_menu" }],
     ];
@@ -498,7 +492,7 @@ export class UIComponents {
       [CourseCategory.HSS]: "📖",
       [CourseCategory.PDV]: "🎯",
       [CourseCategory.BIO]: "🧬",
-      [CourseCategory.CHEM]: "⚗️",
+      [CourseCategory.CHE]: "⚗️",
       [CourseCategory.SPOFAL]: "🏃",
       [CourseCategory.PRL]: "🌍",
     };

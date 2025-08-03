@@ -10,6 +10,7 @@ export interface User {
   email: string;
   name?: string;
   promotion?: string;
+  displayName?: string; // For reviews loaded from external data
   createdAt: string;
   lastActive: string;
 }

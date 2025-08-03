@@ -41,7 +41,7 @@ export class CourseService {
     },
     {
       pageNumber: 2,
-      categories: [CourseCategory.HSS, CourseCategory.PDV, CourseCategory.BIO, CourseCategory.CHEM, CourseCategory.SPOFAL, CourseCategory.PRL]
+      categories: [CourseCategory.HSS, CourseCategory.PDV, CourseCategory.BIO, CourseCategory.CHE, CourseCategory.SPOFAL, CourseCategory.PRL]
     }
   ];
 
@@ -162,8 +162,16 @@ export class CourseService {
   /**
    * Update grading scheme for a course
    */
-  async updateGradingScheme(courseId: string, components: Array<{ name: string; percentage: number }>, modifiedBy: string): Promise<Course> {
-    return this.courseRepository.updateGradingScheme(courseId, components, modifiedBy);
+  async updateGradingScheme(
+    courseId: string,
+    description: string,
+    modifiedBy: string
+  ): Promise<Course> {
+    return this.courseRepository.updateGradingScheme(
+      courseId,
+      description,
+      modifiedBy
+    );
   }
 
   /**
