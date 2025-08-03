@@ -62,7 +62,10 @@ export class CourseRepository extends AbstractRepository<Course, string> {
       }
     };
 
-    return this.query(params);
+    const courses = await this.query(params);
+    
+    // Sort courses by courseId (course code)
+    return courses.sort((a, b) => a.courseId.localeCompare(b.courseId));
   }
 
   /**

@@ -106,7 +106,7 @@ export class UIComponents {
         { text: "⚗️ CHE - Chemistry", callback_data: "category_CHE" },
       ],
       [
-        { text: "🌍 PRL - Languages", callback_data: "category_PRL" },
+        { text: "📚 PRL - Research", callback_data: "category_PRL" },
         { text: "🏃 SPOFAL - Sports", callback_data: "category_SPOFAL" },
       ],
       [{ text: "⬅️ Previous Page", callback_data: "categories_page_1" }],
