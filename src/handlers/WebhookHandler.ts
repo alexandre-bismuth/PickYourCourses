@@ -263,6 +263,7 @@ export class WebhookHandler {
     // Basic commands
     this.addCommandRoute("/start", this.handleStartCommand.bind(this));
     this.addCommandRoute("/help", this.handleHelpCommand.bind(this));
+    this.addCommandRoute("/testadmin", this.handleTestAdminCommand.bind(this));
 
     // Callback routes
     this.addCallbackRoute(/^help$/, this.handleHelpCallback.bind(this));
@@ -377,6 +378,16 @@ export class WebhookHandler {
     this.addCallbackRoute(
       /^add_text_review$/,
       this.handleAddTextReviewCallback.bind(this)
+    );
+
+    // Course edit request routes
+    this.addCallbackRoute(
+      /^edit_course_info_(.+)$/,
+      this.handleEditCourseInfoCallback.bind(this)
+    );
+    this.addCallbackRoute(
+      /^request_course_edit_(.+)$/,
+      this.handleRequestCourseEditCallback.bind(this)
     );
     this.addCallbackRoute(
       /^edit_current_review$/,
@@ -495,7 +506,7 @@ export class WebhookHandler {
       await this.routeCommand(text, userId, chatId);
     } else {
       // Handle text input based on current state
-      await this.handleTextInput(text, userId, chatId);
+      await this.handleTextInput(text, userId, chatId, user);
     }
   }
 
@@ -567,7 +578,8 @@ export class WebhookHandler {
   private async handleTextInput(
     text: string,
     userId: string,
-    chatId: number
+    chatId: number,
+    user?: TelegramUser
   ): Promise<void> {
     const stateData = await this.stateManager.getState(userId);
     const currentState = stateData?.state || ConversationState.MAIN_MENU;
@@ -596,6 +608,11 @@ export class WebhookHandler {
       case ConversationState.EDITING_REVIEW_TEXT:
         // Handle review editing text input
         await this.reviewEditHandler.handleTextInput(userId, chatId, text);
+        break;
+
+      case ConversationState.COLLECTING_COURSE_EDIT_TEXT:
+        // Handle course edit request text input
+        await this.handleCourseEditTextInput(text, userId, chatId, user);
         break;
 
       default:
@@ -3735,5 +3752,320 @@ export class WebhookHandler {
       data,
       messageId || 0
     );
+  }
+
+  /**
+   * Handle edit course info callback - shows the edit information page
+   */
+  private async handleEditCourseInfoCallback(
+    userId: string,
+    chatId: number,
+    data: string,
+    messageId?: number
+  ): Promise<void> {
+    try {
+      const match = data.match(/^edit_course_info_(.+)$/);
+      const courseId = match?.[1];
+
+      if (!courseId) {
+        await this.sendErrorMessage(chatId, "Invalid course selected.");
+        return;
+      }
+
+      // Get course details to display course name
+      const courseDetails = await this.courseService.getCourseDetails(courseId);
+      if (!courseDetails) {
+        await this.sendErrorMessage(chatId, "Course not found.");
+        return;
+      }
+
+      await this.stateManager.setState(
+        userId,
+        ConversationState.REQUESTING_COURSE_EDIT,
+        { courseId }
+      );
+
+      const message =
+        `✏️ **Edit Course Information**\n\n` +
+        `📚 **Course:** ${courseDetails.courseId} - ${courseDetails.name}\n\n` +
+        `You can request changes to:\n` +
+        `• Course name\n` +
+        `• Grading scheme\n` +
+        `• Course description\n` +
+        `• Any other course information\n\n` +
+        `Your request will be sent to an administrator for review. ` +
+        `Please provide clear details about what you'd like to change and why.`;
+
+      const keyboard = UIComponents.createCourseEditInfoMenu(courseId);
+
+      if (messageId) {
+        await this.bot.editMessageText(message, {
+          chat_id: chatId,
+          message_id: messageId,
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      } else {
+        await this.bot.sendMessage(chatId, message, {
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      }
+    } catch (error) {
+      console.error("Edit course info callback failed:", error);
+      await this.sendErrorMessage(
+        chatId,
+        "Failed to load edit information page. Please try again."
+      );
+    }
+  }
+
+  /**
+   * Handle request course edit callback - prompts user for edit text
+   */
+  private async handleRequestCourseEditCallback(
+    userId: string,
+    chatId: number,
+    data: string,
+    messageId?: number
+  ): Promise<void> {
+    try {
+      const match = data.match(/^request_course_edit_(.+)$/);
+      const courseId = match?.[1];
+
+      if (!courseId) {
+        await this.sendErrorMessage(chatId, "Invalid course selected.");
+        return;
+      }
+
+      // Get course details to display course name
+      const courseDetails = await this.courseService.getCourseDetails(courseId);
+      if (!courseDetails) {
+        await this.sendErrorMessage(chatId, "Course not found.");
+        return;
+      }
+
+      await this.stateManager.setState(
+        userId,
+        ConversationState.COLLECTING_COURSE_EDIT_TEXT,
+        { courseId }
+      );
+
+      const message =
+        `📝 **Describe Your Edit Request**\n\n` +
+        `📚 **Course:** ${courseDetails.courseId} - ${courseDetails.name}\n\n` +
+        `Please describe what you would like to change about this course. ` +
+        `Be as specific as possible:\n\n` +
+        `• What information needs to be updated?\n` +
+        `• What should it be changed to?\n` +
+        `• Why is this change needed?\n\n` +
+        `Type your request below:`;
+
+      const keyboard = UIComponents.createCourseEditRequestMenu(courseId);
+
+      if (messageId) {
+        await this.bot.editMessageText(message, {
+          chat_id: chatId,
+          message_id: messageId,
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      } else {
+        await this.bot.sendMessage(chatId, message, {
+          reply_markup: keyboard,
+          parse_mode: "Markdown",
+        });
+      }
+    } catch (error) {
+      console.error("Request course edit callback failed:", error);
+      await this.sendErrorMessage(
+        chatId,
+        "Failed to start edit request. Please try again."
+      );
+    }
+  }
+
+  /**
+   * Handle test admin command
+   */
+  private async handleTestAdminCommand(
+    userId: string,
+    chatId: number,
+    _args?: string[]
+  ): Promise<void> {
+    try {
+      // Only allow the admin to test this
+      if (userId !== "5235173328") {
+        await this.bot.sendMessage(
+          chatId,
+          "❌ This command is only available to the admin."
+        );
+        return;
+      }
+
+      await this.testAdminMessage();
+      await this.bot.sendMessage(
+        chatId,
+        "✅ Test admin message sent! Check if you received it."
+      );
+    } catch (error) {
+      console.error("Test admin command failed:", error);
+      await this.bot.sendMessage(
+        chatId,
+        "❌ Failed to send test admin message."
+      );
+    }
+  }
+
+  /**
+   * Test admin messaging (for debugging)
+   */
+  private async testAdminMessage(): Promise<void> {
+    try {
+      const adminUserId = "5235173328";
+      const testMessage =
+        "🔔 Test message from PickYourCourses bot - admin messaging is working!";
+
+      await this.bot.sendMessage(parseInt(adminUserId), testMessage);
+      console.log("Test admin message sent successfully");
+    } catch (error) {
+      console.error("Test admin message failed:", error);
+    }
+  }
+
+  /**
+   * Handle course edit text input
+   */
+  private async handleCourseEditTextInput(
+    text: string,
+    userId: string,
+    chatId: number,
+    user?: TelegramUser
+  ): Promise<void> {
+    try {
+      const stateData = await this.stateManager.getState(userId);
+      const courseId = stateData?.data?.courseId;
+
+      if (!courseId) {
+        await this.sendErrorMessage(
+          chatId,
+          "Session expired. Please try again."
+        );
+        await this.stateManager.clearState(userId);
+        return;
+      }
+
+      // Get course details
+      const courseDetails = await this.courseService.getCourseDetails(courseId);
+      if (!courseDetails) {
+        await this.sendErrorMessage(chatId, "Course not found.");
+        return;
+      }
+
+      // Get user information from database
+      const userInfo = await this.userRepository.getOrCreate(userId);
+
+      // Prepare the edit request message to send to admin
+      const adminUserId = "5235173328"; // Your user ID
+
+      // Escape special characters for Markdown
+      const escapeMarkdown = (text: string): string => {
+        return text.replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
+      };
+
+      let adminMessage = `🔔 *New Course Edit Request*\n\n`;
+      adminMessage += `📚 *Course:* ${escapeMarkdown(
+        courseDetails.courseId
+      )} - ${escapeMarkdown(courseDetails.name)}\n\n`;
+      adminMessage += `👤 *Requested by:*\n`;
+
+      // Add user information from database
+      if (userInfo) {
+        adminMessage += `• Name: ${escapeMarkdown(
+          userInfo.name || "Not provided"
+        )}\n`;
+        if (userInfo.promotion) {
+          adminMessage += `• Promotion: ${escapeMarkdown(
+            userInfo.promotion
+          )}\n`;
+        }
+      }
+
+      // Add Telegram information if available
+      if (user) {
+        adminMessage += `• Telegram: ${escapeMarkdown(user.first_name)}`;
+        if (user.username) {
+          adminMessage += ` (@${escapeMarkdown(user.username)})`;
+        }
+        adminMessage += `\n`;
+      }
+
+      adminMessage += `• User ID: ${userId}\n`;
+
+      adminMessage += `\n📝 *Edit Request:*\n${escapeMarkdown(text)}\n\n`;
+      adminMessage += `⏰ *Submitted:* ${escapeMarkdown(
+        new Date().toLocaleString()
+      )}`;
+
+      // Send to admin
+      try {
+        console.log(`Attempting to send edit request to admin ${adminUserId}`);
+        console.log(`Admin message length: ${adminMessage.length}`);
+
+        const adminChatId = parseInt(adminUserId);
+        console.log(`Parsed admin chat ID: ${adminChatId}`);
+
+        const result = await this.bot.sendMessage(adminChatId, adminMessage, {
+          parse_mode: "Markdown",
+        });
+
+        console.log(
+          "Successfully sent edit request to admin:",
+          result.message_id
+        );
+      } catch (adminError) {
+        console.error("Failed to send edit request to admin:", adminError);
+        console.error("Admin message content:", adminMessage);
+
+        // Try sending without markdown parsing as fallback
+        try {
+          console.log("Attempting to send without Markdown parsing...");
+          await this.bot.sendMessage(parseInt(adminUserId), adminMessage);
+          console.log(
+            "Successfully sent edit request to admin (without Markdown)"
+          );
+        } catch (fallbackError) {
+          console.error("Fallback admin message also failed:", fallbackError);
+        }
+      }
+
+      // Send confirmation to user
+      const confirmationMessage =
+        `✅ **Edit Request Submitted**\n\n` +
+        `📚 **Course:** ${courseDetails.courseId} - ${courseDetails.name}\n\n` +
+        `Your edit request has been transmitted to an administrator. ` +
+        `They will review your request and make the necessary changes if approved.\n\n` +
+        `Thank you for helping improve the course information!`;
+
+      const keyboard = UIComponents.createBackNavigation(`course_${courseId}`);
+
+      await this.bot.sendMessage(chatId, confirmationMessage, {
+        reply_markup: keyboard,
+        parse_mode: "Markdown",
+      });
+
+      // Clear state and return to course view
+      await this.stateManager.setState(
+        userId,
+        ConversationState.VIEWING_COURSE,
+        { courseId, category: courseDetails.category }
+      );
+    } catch (error) {
+      console.error("Course edit text input failed:", error);
+      await this.sendErrorMessage(
+        chatId,
+        "Failed to submit edit request. Please try again."
+      );
+    }
   }
 }

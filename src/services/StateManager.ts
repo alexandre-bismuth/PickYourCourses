@@ -79,7 +79,8 @@ export class StateManager {
       [ConversationState.VIEWING_COURSE]: [
         ConversationState.BROWSING_CATEGORIES,
         ConversationState.MAIN_MENU,
-        ConversationState.POSTING_REVIEW
+        ConversationState.POSTING_REVIEW,
+        ConversationState.REQUESTING_COURSE_EDIT
       ],
       [ConversationState.POSTING_REVIEW]: [
         ConversationState.MAIN_MENU,
@@ -112,6 +113,16 @@ export class StateManager {
       [ConversationState.EDITING_REVIEW_TEXT]: [
         ConversationState.EDITING_REVIEW,
         ConversationState.VIEWING_MY_REVIEWS,
+        ConversationState.MAIN_MENU
+      ],
+      [ConversationState.REQUESTING_COURSE_EDIT]: [
+        ConversationState.VIEWING_COURSE,
+        ConversationState.MAIN_MENU,
+        ConversationState.COLLECTING_COURSE_EDIT_TEXT
+      ],
+      [ConversationState.COLLECTING_COURSE_EDIT_TEXT]: [
+        ConversationState.REQUESTING_COURSE_EDIT,
+        ConversationState.VIEWING_COURSE,
         ConversationState.MAIN_MENU
       ]
     };

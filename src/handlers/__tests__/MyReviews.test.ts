@@ -319,4 +319,94 @@ describe("My Reviews Functionality", () => {
       );
     });
   });
+
+  describe("Course Edit Request Functionality", () => {
+    it("should handle edit course info callback", async () => {
+      const mockCourseDetails: CourseDetails = {
+        courseId: "MAA101",
+        name: "Analysis I",
+        category: CourseCategory.MAA,
+        description: "Mathematical Analysis course",
+        gradingScheme: {
+          description: "Final Exam: 60%, Midterm: 40%",
+          lastModified: "2024-01-01T00:00:00Z",
+          modifiedBy: "admin",
+        },
+        averageRatings: { overall: 4.2, quality: 4.1, difficulty: 3.8 },
+        reviewCount: 10,
+        totalVotes: 25,
+      };
+
+      mockCourseService.getCourseDetails.mockResolvedValue(mockCourseDetails);
+
+      // Call the handler
+      await webhookHandler["handleEditCourseInfoCallback"](
+        testUserId,
+        testChatId,
+        "edit_course_info_MAA101",
+        123
+      );
+
+      // Verify state was set
+      expect(mockStateManager.setState).toHaveBeenCalledWith(
+        testUserId,
+        ConversationState.REQUESTING_COURSE_EDIT,
+        { courseId: "MAA101" }
+      );
+
+      // Verify message was sent with edit information
+      expect(mockBot.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining("Edit Course Information"),
+        expect.objectContaining({
+          chat_id: testChatId,
+          message_id: 123,
+          parse_mode: "Markdown",
+        })
+      );
+    });
+
+    it("should handle request course edit callback", async () => {
+      const mockCourseDetails: CourseDetails = {
+        courseId: "MAA101",
+        name: "Analysis I",
+        category: CourseCategory.MAA,
+        description: "Mathematical Analysis course",
+        gradingScheme: {
+          description: "Final Exam: 60%, Midterm: 40%",
+          lastModified: "2024-01-01T00:00:00Z",
+          modifiedBy: "admin",
+        },
+        averageRatings: { overall: 4.2, quality: 4.1, difficulty: 3.8 },
+        reviewCount: 10,
+        totalVotes: 25,
+      };
+
+      mockCourseService.getCourseDetails.mockResolvedValue(mockCourseDetails);
+
+      // Call the handler
+      await webhookHandler["handleRequestCourseEditCallback"](
+        testUserId,
+        testChatId,
+        "request_course_edit_MAA101",
+        123
+      );
+
+      // Verify state was set to collect text
+      expect(mockStateManager.setState).toHaveBeenCalledWith(
+        testUserId,
+        ConversationState.COLLECTING_COURSE_EDIT_TEXT,
+        { courseId: "MAA101" }
+      );
+
+      // Verify message prompts for edit description
+      expect(mockBot.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining("Describe Your Edit Request"),
+        expect.objectContaining({
+          chat_id: testChatId,
+          message_id: 123,
+          parse_mode: "Markdown",
+        })
+      );
+    });
+  });
 });

@@ -315,6 +315,7 @@ export class UIComponents {
       [
         { text: "📖 View Reviews", callback_data: `reviews_${courseId}` },
         { text: "✍️ Write Review", callback_data: `write_review_${courseId}` },
+        { text: "✏️ Edit Information", callback_data: `edit_course_info_${courseId}` },
       ],
       [
         { text: "🔙 Back to Category", callback_data: "back_to_category" },
@@ -527,6 +528,35 @@ export class UIComponents {
     }
 
     keyboard.push([{ text: "🏠 Main Menu", callback_data: "main_menu" }]);
+
+    return { inline_keyboard: keyboard };
+  }
+
+  /**
+   * Create course edit information menu
+   */
+  static createCourseEditInfoMenu(courseId: string): InlineKeyboardMarkup {
+    const keyboard: InlineKeyboardButton[][] = [
+      [
+        { text: "📝 Ask for Edit", callback_data: `request_course_edit_${courseId}` },
+      ],
+      [
+        { text: "🔙 Back to Course", callback_data: `course_${courseId}` },
+      ],
+    ];
+
+    return { inline_keyboard: keyboard };
+  }
+
+  /**
+   * Create course edit request input menu
+   */
+  static createCourseEditRequestMenu(courseId: string): InlineKeyboardMarkup {
+    const keyboard: InlineKeyboardButton[][] = [
+      [
+        { text: "🔙 Back to Course", callback_data: `course_${courseId}` },
+      ],
+    ];
 
     return { inline_keyboard: keyboard };
   }
