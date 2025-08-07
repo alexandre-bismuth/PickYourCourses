@@ -63,6 +63,8 @@ export class WebhookHandler {
   private userRepository: UserRepository;
   private commandRoutes: Map<string, CommandRoute>;
   private callbackRoutes: CallbackRoute[];
+  private processingCallbacks: Map<string, number> = new Map(); // Track processing callbacks
+  private loadingStates: Map<string, boolean> = new Map(); // Track loading states per user
 
   constructor(
     botToken: string,
@@ -552,6 +554,43 @@ export class WebhookHandler {
       return;
     }
 
+    // Create a unique key for this callback to prevent double processing
+    const callbackKey = `${userId}:${data}:${messageId}`;
+    const now = Date.now();
+    
+    // Check if this callback is already being processed recently (within 2 seconds)
+    const lastProcessed = this.processingCallbacks.get(callbackKey);
+    if (lastProcessed && (now - lastProcessed) < 2000) {
+      // Answer the callback query silently to remove loading state
+      try {
+        await this.bot.answerCallbackQuery(callbackQuery.id);
+      } catch (error) {
+        console.error("Failed to answer duplicate callback query:", error);
+      }
+      return;
+    }
+
+    // Check if user is already in a loading state for data-heavy operations
+    if (this.isUserLoading(userId) && this.isDataHeavyOperation(data)) {
+      try {
+        await this.bot.answerCallbackQuery(callbackQuery.id, {
+          text: "Please wait, still loading...",
+          show_alert: false
+        });
+      } catch (error) {
+        console.error("Failed to answer loading callback query:", error);
+      }
+      return;
+    }
+
+    // Mark this callback as being processed
+    this.processingCallbacks.set(callbackKey, now);
+    
+    // Set loading state for data-heavy operations
+    if (this.isDataHeavyOperation(data)) {
+      this.setUserLoading(userId, true);
+    }
+
     // Answer the callback query to remove loading state
     try {
       await this.bot.answerCallbackQuery(callbackQuery.id);
@@ -559,17 +598,35 @@ export class WebhookHandler {
       console.error("Failed to answer callback query:", error);
     }
 
-    // Find matching route
-    for (const route of this.callbackRoutes) {
-      const match = data.match(route.pattern);
-      if (match) {
-        await route.handler(userId, chatId, data, messageId);
-        return;
+    try {
+      // Find matching route
+      for (const route of this.callbackRoutes) {
+        const match = data.match(route.pattern);
+        if (match) {
+          await route.handler(userId, chatId, data, messageId);
+          return;
+        }
       }
-    }
 
-    // No matching route found
-    await this.sendUnknownCallbackMessage(chatId);
+      // No matching route found
+      await this.sendUnknownCallbackMessage(chatId);
+    } catch (error) {
+      console.error("Error processing callback query:", error);
+      // Send a user-friendly error message instead of the technical error
+      if (this.isDataHeavyOperation(data)) {
+        await this.sendServiceUnavailableMessage(chatId);
+      } else {
+        await this.sendErrorMessage(
+          chatId,
+          "Something went wrong. Please try again in a moment."
+        );
+      }
+    } finally {
+      // Clear loading state
+      this.setUserLoading(userId, false);
+      // Clean up old entries to prevent memory leaks
+      this.cleanupProcessingCallbacks();
+    }
   }
 
   /**
@@ -922,8 +979,19 @@ export class WebhookHandler {
         { selectedCategory: category }
       );
 
-      // Get courses in the selected category
-      const courses = await this.courseService.getCoursesByCategory(category);
+      // Get courses in the selected category with timeout protection
+      let courses;
+      try {
+        courses = await this.withTimeout(
+          this.courseService.getCoursesByCategory(category),
+          5000,
+          "Course loading timed out"
+        );
+      } catch (dbError) {
+        console.error("Database error loading courses:", dbError);
+        await this.sendServiceUnavailableMessage(chatId);
+        return;
+      }
 
       if (courses.length === 0) {
         const message =
@@ -1009,8 +1077,20 @@ export class WebhookHandler {
         return;
       }
 
-      // Get course details first to access category information
-      const courseDetails = await this.courseService.getCourseDetails(courseId);
+      // Get course details with timeout protection
+      let courseDetails;
+      try {
+        courseDetails = await this.withTimeout(
+          this.courseService.getCourseDetails(courseId),
+          5000,
+          "Course loading timed out"
+        );
+      } catch (dbError) {
+        console.error("Database error loading course details:", dbError);
+        await this.sendServiceUnavailableMessage(chatId);
+        return;
+      }
+
       if (!courseDetails) {
         await this.sendErrorMessage(chatId, "Course not found.");
         return;
@@ -3022,6 +3102,86 @@ export class WebhookHandler {
       chatId,
       "❓ Unknown action. Please try again or use /help for assistance."
     );
+  }
+
+  /**
+   * Clean up old processing callback entries to prevent memory leaks
+   */
+  private cleanupProcessingCallbacks(): void {
+    const now = Date.now();
+    const maxAge = 10000; // 10 seconds
+    
+    for (const [key, timestamp] of this.processingCallbacks.entries()) {
+      if (now - timestamp > maxAge) {
+        this.processingCallbacks.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Check if user is currently in a loading state
+   */
+  private isUserLoading(userId: string): boolean {
+    return this.loadingStates.get(userId) || false;
+  }
+
+  /**
+   * Set user loading state
+   */
+  private setUserLoading(userId: string, loading: boolean): void {
+    if (loading) {
+      this.loadingStates.set(userId, true);
+    } else {
+      this.loadingStates.delete(userId);
+    }
+  }
+
+  /**
+   * Check if an operation is data-heavy and might take time
+   */
+  private isDataHeavyOperation(data: string): boolean {
+    return (
+      data.startsWith('course_') ||
+      data.startsWith('category_') ||
+      data.startsWith('reviews_') ||
+      data.startsWith('my_reviews') ||
+      data.startsWith('browse_categories') ||
+      data.startsWith('courses_')
+    );
+  }
+
+  /**
+   * Send a user-friendly error message for service unavailability
+   */
+  private async sendServiceUnavailableMessage(chatId: number): Promise<void> {
+    await this.bot.sendMessage(
+      chatId,
+      "🔄 The service is temporarily busy. Please wait a moment and try again.\n\n" +
+      "If the problem persists, you can return to the main menu and try a different action.",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🏠 Main Menu", callback_data: "main_menu" }],
+          ],
+        },
+      }
+    );
+  }
+
+  /**
+   * Wrap database operations with timeout protection
+   */
+  private async withTimeout<T>(
+    operation: Promise<T>,
+    timeoutMs: number = 5000,
+    errorMessage: string = "Operation timed out"
+  ): Promise<T> {
+    return Promise.race([
+      operation,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+      ),
+    ]);
   }
 
   private createResponse(statusCode: number, body: any): APIGatewayProxyResult {
