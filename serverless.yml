@@ -2,12 +2,15 @@ service: pickyourcourses-telegram-bot
 
 frameworkVersion: "4"
 
+package:
+  individually: false
+
 provider:
   name: aws
   runtime: nodejs22.x
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
-  memorySize: 768
+  memorySize: 1024
   timeout: 25
   tracing:
     lambda: true
@@ -73,17 +76,13 @@ provider:
           Resource:
             - "arn:aws:sqs:${self:provider.region}:*:${self:service}-${self:provider.stage}-dlq"
 
-plugins:
-  - serverless-offline
-
 build:
   esbuild:
     bundle: true
     minify: false
     sourcemap: true
     target: node22
-    exclude:
-      - aws-sdk
+    exclude: []
 
 functions:
   webhook:
@@ -111,6 +110,7 @@ functions:
           path: /health
           method: get
           cors: false
+          private: false
     environment:
       FUNCTION_NAME: healthCheck
 
@@ -328,18 +328,6 @@ resources:
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-        Tags:
-          - Key: Environment
-            Value: ${self:provider.stage}
-          - Key: Service
-            Value: ${self:service}
-
-    # SQS Dead Letter Queue
-    DeadLetterQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:service}-${self:provider.stage}-dlq
-        MessageRetentionPeriod: 1209600 # 14 days
         Tags:
           - Key: Environment
             Value: ${self:provider.stage}

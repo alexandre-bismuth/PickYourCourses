@@ -133,12 +133,15 @@ log_info "Starting deployment for stage: $STAGE"
 # Change to project directory
 cd "$PROJECT_ROOT"
 
-# Load environment variables from .env file if it exists
-if [[ -f ".env" ]]; then
-    log_info "Loading environment variables from .env file..."
-    set -a  # automatically export all variables
-    source .env
-    set +a  # stop automatically exporting
+ENV_FILE=".env.$STAGE"
+if [[ -f "$ENV_FILE" ]]; then
+  log_info "Loading environment from $ENV_FILE"
+  set -a; source "$ENV_FILE"; set +a
+elif [[ -f ".env" ]]; then
+  log_info "Loading environment from .env"
+  set -a; source .env; set +a
+else
+  log_warning "No .env file found; relying on existing environment"
 fi
 
 # Validate environment
