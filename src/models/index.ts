@@ -1,17 +1,19 @@
-// Data model interfaces for the PickYourCourses Telegram bot
+/**
+ * Data model interfaces for the PickYourCourses Telegram bot
+ */
 
 export interface User {
-  telegramId: string;           // Primary key
+  telegramId: string; // Primary key
   email: string;
-  name?: string;                // Full name for public reviews
-  promotion?: string;           // Promotion/year for public reviews
+  name?: string; // Full name for public reviews
+  promotion?: string; // Promotion/year for public reviews
   createdAt: string;
   lastActive: string;
 }
 
 export interface Course {
-  courseId: string;             // Primary key (e.g., "MAA101")
-  category: string;             // MAA, PHY, CSE, etc.
+  courseId: string; // Primary key (e.g., "MAA101")
+  category: string; // MAA, PHY, CSE, etc.
   name: string;
   description?: string;
   gradingScheme: GradingScheme;
@@ -24,13 +26,13 @@ export interface Course {
 }
 
 export interface Review {
-  reviewId: string;             // Primary key
-  courseId: string;             // GSI
+  reviewId: string; // Primary key
+  courseId: string; // GSI
   userId: string;
   ratings: {
-    overall: number;            // 1-5
-    quality: number;            // 1-5
-    difficulty: number;         // 1-5
+    overall: number; // 1-5
+    quality: number; // 1-5
+    difficulty: number; // 1-5
   };
   text?: string;
   anonymous: boolean;
@@ -42,25 +44,25 @@ export interface Review {
 }
 
 export interface Vote {
-  voteId: string;               // Primary key
-  reviewId: string;             // GSI
+  voteId: string; // Primary key
+  reviewId: string; // GSI
   userId: string;
   voteType: 'up' | 'down';
   createdAt: string;
 }
 
 export interface GradingScheme {
-  description: string;          // Free text description of grading scheme
+  description: string; // Free text description of grading scheme
   lastModified: string;
-  modifiedBy: string;           // User ID - visible to admins for audit trail
+  modifiedBy: string; // User ID - visible to admins for audit trail
 }
 
 export interface RateLimit {
-  userId: string;               // Primary key
-  dailyCount: number;           // Messages sent today
-  totalCount: number;           // Lifetime message count
-  lastResetDate: string;        // Date of last daily reset (YYYY-MM-DD)
-  lastMessageTime: string;      // Timestamp of last message
+  userId: string; // Primary key
+  dailyCount: number; // Messages sent today
+  totalCount: number; // Lifetime message count
+  lastResetDate: string; // Date of last daily reset (YYYY-MM-DD)
+  lastMessageTime: string; // Timestamp of last message
 }
 
 // Telegram-specific interfaces

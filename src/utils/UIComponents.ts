@@ -3,11 +3,8 @@
  * Provides reusable inline keyboard components and pagination utilities
  */
 
-import {
-  InlineKeyboardMarkup,
-  InlineKeyboardButton,
-} from "node-telegram-bot-api";
-import { CourseCategory } from "../models";
+import { InlineKeyboardMarkup, InlineKeyboardButton } from 'node-telegram-bot-api';
+import { CourseCategory } from '../models';
 
 /**
  * Pagination configuration
@@ -59,12 +56,12 @@ export class UIComponents {
   static createMainMenu(): InlineKeyboardMarkup {
     const keyboard: InlineKeyboardButton[][] = [
       [
-        { text: "📚 Browse Courses", callback_data: "browse_categories" },
-        { text: "✍️ Post Review", callback_data: "post_review" },
+        { text: '📚 Browse Courses', callback_data: 'browse_categories' },
+        { text: '✍️ Post Review', callback_data: 'post_review' },
       ],
       [
-        { text: "⭐ My Reviews", callback_data: "my_reviews" },
-        { text: "❓ Help", callback_data: "help" },
+        { text: '⭐ My Reviews', callback_data: 'my_reviews' },
+        { text: '❓ Help', callback_data: 'help' },
       ],
     ];
 
@@ -77,16 +74,16 @@ export class UIComponents {
   static createCategoriesMenuPage1(): InlineKeyboardMarkup {
     const keyboard: InlineKeyboardButton[][] = [
       [
-        { text: "🔢 MAA - Mathematics", callback_data: "category_MAA" },
-        { text: "⚛️ PHY - Physics", callback_data: "category_PHY" },
+        { text: '🔢 MAA - Mathematics', callback_data: 'category_MAA' },
+        { text: '⚛️ PHY - Physics', callback_data: 'category_PHY' },
       ],
       [
-        { text: "💻 CSE - Computer Science", callback_data: "category_CSE" },
-        { text: "💰 ECO - Economics", callback_data: "category_ECO" },
+        { text: '💻 CSE - Computer Science', callback_data: 'category_CSE' },
+        { text: '💰 ECO - Economics', callback_data: 'category_ECO' },
       ],
-      [{ text: "🔬 LAB - Laboratory", callback_data: "category_LAB" }],
-      [{ text: "➡️ Next Page", callback_data: "categories_page_2" }],
-      [{ text: "🏠 Main Menu", callback_data: "main_menu" }],
+      [{ text: '🔬 LAB - Laboratory', callback_data: 'category_LAB' }],
+      [{ text: '➡️ Next Page', callback_data: 'categories_page_2' }],
+      [{ text: '🏠 Main Menu', callback_data: 'main_menu' }],
     ];
 
     return { inline_keyboard: keyboard };
@@ -98,19 +95,19 @@ export class UIComponents {
   static createCategoriesMenuPage2(): InlineKeyboardMarkup {
     const keyboard: InlineKeyboardButton[][] = [
       [
-        { text: "📖 HSS - Humanities & Social Sciences", callback_data: "category_HSS", },
-        { text: "🎯 PDV - Personal Development", callback_data: "category_PDV", },
+        { text: '📖 HSS - Humanities & Social Sciences', callback_data: 'category_HSS' },
+        { text: '🎯 PDV - Personal Development', callback_data: 'category_PDV' },
       ],
       [
-        { text: "🧬 BIO - Biology", callback_data: "category_BIO" },
-        { text: "⚗️ CHE - Chemistry", callback_data: "category_CHE" },
+        { text: '🧬 BIO - Biology', callback_data: 'category_BIO' },
+        { text: '⚗️ CHE - Chemistry', callback_data: 'category_CHE' },
       ],
       [
-        { text: "📚 PRL - Research", callback_data: "category_PRL" },
-        { text: "🏃 SPOFAL - Sports", callback_data: "category_SPOFAL" },
+        { text: '📚 PRL - Research', callback_data: 'category_PRL' },
+        { text: '🏃 SPOFAL - Sports', callback_data: 'category_SPOFAL' },
       ],
-      [{ text: "⬅️ Previous Page", callback_data: "categories_page_1" }],
-      [{ text: "🏠 Main Menu", callback_data: "main_menu" }],
+      [{ text: '⬅️ Previous Page', callback_data: 'categories_page_1' }],
+      [{ text: '🏠 Main Menu', callback_data: 'main_menu' }],
     ];
 
     return { inline_keyboard: keyboard };

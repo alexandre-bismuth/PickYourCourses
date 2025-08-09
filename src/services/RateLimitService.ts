@@ -13,8 +13,8 @@ export interface RateLimitConfig {
  * Default rate limiting configuration
  */
 export const DEFAULT_RATE_LIMIT_CONFIG: RateLimitConfig = {
-  dailyLimit: 1000,
-  totalLimit: 2000
+  dailyLimit: 100,
+  totalLimit: 3000
 };
 
 /**

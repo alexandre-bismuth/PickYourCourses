@@ -345,13 +345,11 @@ export class TableManager {
   async createTable(schema: DynamoDB.CreateTableInput): Promise<void> {
     try {
       await this.dynamoDB.createTable(schema).promise();
-      console.log(`Table ${schema.TableName} created successfully`);
     } catch (error: any) {
-      if (error.code === 'ResourceInUseException') {
-        console.log(`Table ${schema.TableName} already exists`);
-      } else {
+      if (error.code !== 'ResourceInUseException') {
         throw error;
       }
+      // Table already exists, ignore error
     }
   }
 
@@ -370,13 +368,11 @@ export class TableManager {
   async deleteTable(tableName: string): Promise<void> {
     try {
       await this.dynamoDB.deleteTable({ TableName: tableName }).promise();
-      console.log(`Table ${tableName} deleted successfully`);
     } catch (error: any) {
-      if (error.code === 'ResourceNotFoundException') {
-        console.log(`Table ${tableName} does not exist`);
-      } else {
+      if (error.code !== 'ResourceNotFoundException') {
         throw error;
       }
+      // Table doesn't exist, ignore error
     }
   }
 

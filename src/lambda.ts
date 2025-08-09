@@ -13,13 +13,6 @@ export const webhookHandler = async (
   context: Context
 ): Promise<APIGatewayProxyResult> => {
   try {
-    console.log("Webhook request received", {
-      requestId: context.awsRequestId,
-      httpMethod: event.httpMethod,
-      path: event.path,
-      remainingTime: context.getRemainingTimeInMillis(),
-    });
-
     // Validate request method
     if (event.httpMethod !== "POST") {
       console.warn("Invalid HTTP method", {
@@ -63,13 +56,6 @@ export const webhookHandler = async (
 
     // Use the WebhookHandler's handleWebhook method directly
     const result = await services.webhookHandler.handleWebhook(event);
-
-    console.log("Webhook request processed successfully", {
-      statusCode: result.statusCode,
-      requestId: context.awsRequestId,
-      remainingTime: context.getRemainingTimeInMillis(),
-    });
-
     return result;
   } catch (error) {
     console.error("Webhook request failed", error, {
@@ -118,12 +104,6 @@ export const healthCheckHandler = async (
         remainingTimeInMillis: context.getRemainingTimeInMillis(),
       },
     };
-
-    console.log("Health check completed", {
-      status: "healthy",
-      requestId: context.awsRequestId,
-    });
-
     return {
       statusCode: 200,
       headers: {
@@ -160,19 +140,9 @@ export const warmUpHandler = async (
   context: Context
 ): Promise<void> => {
   if (event.source === "serverless-plugin-warmup") {
-    console.log("Lambda warm-up initiated", {
-      requestId: context.awsRequestId,
-      remainingTime: context.getRemainingTimeInMillis(),
-    });
-
     try {
       // Pre-initialize services
       await ServiceFactory.createServices();
-
-      console.log("Lambda warm-up completed successfully", {
-        requestId: context.awsRequestId,
-        remainingTime: context.getRemainingTimeInMillis(),
-      });
     } catch (error) {
       console.error("Lambda warm-up failed", error, {
         requestId: context.awsRequestId,

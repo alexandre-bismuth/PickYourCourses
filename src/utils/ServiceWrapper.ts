@@ -1,6 +1,6 @@
-import { ErrorHandler, ErrorSeverity } from "./ErrorHandler";
-import { Logger, LogCategory } from "../utils/Logger";
-import { RetryHandler } from "../utils/RetryHandler";
+import { ErrorHandler, ErrorSeverity } from './ErrorHandler';
+import { Logger, LogCategory } from './Logger';
+import { RetryHandler } from './RetryHandler';
 
 /**
  * Service wrapper that demonstrates comprehensive error handling patterns
@@ -204,7 +204,7 @@ export class ServiceWrapper {
         }
 
         // For write operations, throw a user-friendly error
-        throw new Error("💾 Database temporarily unavailable. Please try again in a few moments.");
+        throw new Error('💾 Database temporarily unavailable. Please try again in a few moments.');
     }
 
     /**
@@ -219,7 +219,7 @@ export class ServiceWrapper {
 
         // For email operations, we can't really provide a fallback
         // So we log the failure and throw a user-friendly error
-        throw new Error("📧 Email service temporarily unavailable. Your request has been noted and will be processed when service is restored.");
+        throw new Error('📧 Email service temporarily unavailable. Your request has been noted and will be processed when service is restored.');
     }
 
     /**

@@ -1,7 +1,8 @@
-// Main entry point for the PickYourCourses Telegram bot
-// This will be implemented in subsequent tasks
+/**
+ * Main entry point for the PickYourCourses Telegram bot
+ */
 
 export * from './models';
-// export * from './services';
-// export * from './handlers';
-// export * from './utils';
+export * from './services';
+export * from './handlers';
+export * from './utils';

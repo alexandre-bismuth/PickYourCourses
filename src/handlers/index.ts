@@ -1,4 +1,6 @@
-// Handler exports for the PickYourCourses Telegram bot
+/**
+ * Handler exports for the PickYourCourses Telegram bot
+ */
 
-// Handlers will be implemented in subsequent tasks
-// export * from './WebhookHandler';
+export * from './WebhookHandler';
+export * from './ReviewEditHandler';

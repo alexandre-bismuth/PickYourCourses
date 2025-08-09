@@ -71,26 +71,19 @@ export class DynamoDBClient {
    * Handle DynamoDB errors with proper error classification
    */
   public handleError(error: any): Error {
-    if (error.code === 'ResourceNotFoundException') {
-      return new Error(`Table not found: ${error.message}`);
+    const errorMap: Record<string, string> = {
+      ResourceNotFoundException: 'Table not found',
+      ValidationException: 'Validation error',
+      ConditionalCheckFailedException: 'Conditional check failed',
+      ProvisionedThroughputExceededException: 'Throughput exceeded',
+      ThrottlingException: 'Request throttled',
+    };
+
+    const errorType = errorMap[error.code];
+    if (errorType) {
+      return new Error(`${errorType}: ${error.message}`);
     }
-    
-    if (error.code === 'ValidationException') {
-      return new Error(`Validation error: ${error.message}`);
-    }
-    
-    if (error.code === 'ConditionalCheckFailedException') {
-      return new Error(`Conditional check failed: ${error.message}`);
-    }
-    
-    if (error.code === 'ProvisionedThroughputExceededException') {
-      return new Error(`Throughput exceeded: ${error.message}`);
-    }
-    
-    if (error.code === 'ThrottlingException') {
-      return new Error(`Request throttled: ${error.message}`);
-    }
-    
+
     return new Error(`DynamoDB error: ${error.message || error}`);
   }
 }

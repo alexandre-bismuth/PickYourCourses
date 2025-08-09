@@ -111,30 +111,21 @@ export class ReviewEditHandler {
     messageId: number
   ): Promise<void> {
     try {
-      console.log("ReviewEditHandler: Edit rating callback received", { userId, data, messageId });
-
+      
       // Parse: edit_rating_reviewId_ratingType
-      // Note: reviewId can contain underscores, so we need to be careful with parsing
       const parts = data.split('_');
-      console.log("ReviewEditHandler: Parsing callback data", { parts, partsLength: parts.length });
-
+      
       if (parts.length < 4) {
-        throw new Error(`Invalid edit rating callback data: expected at least 4 parts, got ${parts.length}. Parts: ${JSON.stringify(parts)}`);
+        throw new Error(`Invalid edit rating callback data: expected at least 4 parts, got ${parts.length}`);
       }
 
-      // The ratingType is always the last part
       const ratingType = parts[parts.length - 1] as 'overall' | 'quality' | 'difficulty';
-
-      // The reviewId is everything between "edit_rating_" and the final "_ratingType"
       const reviewId = parts.slice(2, -1).join('_');
-      console.log("ReviewEditHandler: Parsed data", { reviewId, ratingType });
-
+      
       let review = this.editingReviews.get(userId);
-      console.log("ReviewEditHandler: Retrieved review from cache", { hasReview: !!review });
-
+      
       if (!review) {
         // Try to fetch the review from database as fallback
-        console.log("ReviewEditHandler: Review not in cache, fetching from database");
         const userReviews = await this.reviewService.getUserReviews(userId);
         const foundReview = userReviews.find(r => r.reviewId === reviewId);
 
@@ -151,22 +142,17 @@ export class ReviewEditHandler {
         };
         this.editingReviews.set(userId, review);
         await this.stateManager.setState(userId, ConversationState.EDITING_REVIEW, { reviewId });
-        console.log("ReviewEditHandler: Review fetched and cached");
       }
 
-      console.log("ReviewEditHandler: Generating rating edit message");
       const message = this.formatRatingEditMessage(review, ratingType);
       const keyboard = this.createRatingSelectionKeyboard(reviewId, ratingType);
 
-      console.log("ReviewEditHandler: Sending edit message");
       await this.bot.editMessageText(message, {
         chat_id: chatId,
         message_id: messageId,
         parse_mode: "Markdown",
         reply_markup: keyboard
       });
-
-      console.log("ReviewEditHandler: Edit rating callback completed successfully");
 
     } catch (error) {
       console.error("ReviewEditHandler: Edit rating callback error details", {

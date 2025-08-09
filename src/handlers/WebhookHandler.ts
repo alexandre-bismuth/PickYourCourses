@@ -244,18 +244,6 @@ export class WebhookHandler {
   ): Promise<void> {
     // Log to console (will be captured by CloudWatch in Lambda)
     console.warn("RATE_LIMIT_VIOLATION", JSON.stringify(violation));
-
-    // Additional structured logging for monitoring
-    console.log({
-      event: "rate_limit_violation",
-      userId: violation.userId,
-      username: violation.username,
-      violationType: violation.violationType,
-      currentCount: violation.currentCount,
-      limit: violation.limit,
-      timestamp: violation.timestamp,
-      resetTime: violation.resetTime,
-    });
   }
 
   /**
@@ -557,10 +545,11 @@ export class WebhookHandler {
     // Create a unique key for this callback to prevent double processing
     const callbackKey = `${userId}:${data}:${messageId}`;
     const now = Date.now();
-    
-    // Check if this callback is already being processed recently (within 2 seconds)
+    const DUPLICATE_THRESHOLD_MS = 2000;
+
+    // Check if this callback is already being processed recently
     const lastProcessed = this.processingCallbacks.get(callbackKey);
-    if (lastProcessed && (now - lastProcessed) < 2000) {
+    if (lastProcessed && now - lastProcessed < DUPLICATE_THRESHOLD_MS) {
       // Answer the callback query silently to remove loading state
       try {
         await this.bot.answerCallbackQuery(callbackQuery.id);
@@ -575,7 +564,7 @@ export class WebhookHandler {
       try {
         await this.bot.answerCallbackQuery(callbackQuery.id, {
           text: "Please wait, still loading...",
-          show_alert: false
+          show_alert: false,
         });
       } catch (error) {
         console.error("Failed to answer loading callback query:", error);
@@ -585,7 +574,7 @@ export class WebhookHandler {
 
     // Mark this callback as being processed
     this.processingCallbacks.set(callbackKey, now);
-    
+
     // Set loading state for data-heavy operations
     if (this.isDataHeavyOperation(data)) {
       this.setUserLoading(userId, true);
@@ -783,8 +772,8 @@ export class WebhookHandler {
         "• 📚 Browse course reviews by category\n" +
         "• ✍️ Share their own course experiences\n" +
         "• ⭐ Rate courses on quality and difficulty\n" +
-        "• 🗳️ Vote on helpful reviews\n\n" +
-        "What would you like to do today?",
+        "• 🗳️ Up and down vote reviews\n\n" +
+        "Let's take you to the main menu !",
       {
         reply_markup: {
           inline_keyboard: [
@@ -802,11 +791,11 @@ export class WebhookHandler {
     const helpText =
       "🤖 PickYourCourses Bot Help\n\n" +
       "📚 Available commands:\n" +
-      "• /start - Start the bot and go to the main menu\n" +
+      "• /start - Display a welcome text\n" +
       "• /help - Show this help message\n\n" +
       "🎓 About this bot:\n" +
       "PickYourCourses helps École Polytechnique students share and read course reviews. " +
-      "You can browse reviews by category, post your own experiences, and vote on helpful reviews.\n\n" +
+      "You can browse reviews by category, post your own experiences, and up or down vote reviews.\n\n" +
       "❓ For support, contact Alexandre Bismuth (@alex_bsmth).";
 
     await this.bot.sendMessage(chatId, helpText);
@@ -867,8 +856,7 @@ export class WebhookHandler {
 
       const message =
         "📚 **Browse Course Reviews**\n\n" +
-        "Select a category to explore courses and read reviews from other students.\n\n" +
-        "Choose from the categories below:";
+        "Select a category from the choices below to explore courses and read reviews from other students.";
 
       const keyboard = UIComponents.createCategoriesMenuPage1();
 
@@ -1683,7 +1671,7 @@ export class WebhookHandler {
           `**Step 3 of 5:** Rate **${stateData.data.courseName}**\n\n` +
           `Overall: ${"⭐".repeat(updatedRatings.overall)}\n` +
           `Quality: ${"⭐".repeat(rating)}\n\n` +
-          `**Difficulty Rating:** How difficult was this course?\n\n` +
+          `**Difficulty Rating:** How difficult was this course? (the higher the harder)\n\n` +
           `Select your rating (1-5 stars):`;
         keyboard = UIComponents.createRatingKeyboard("difficulty");
       } else {
@@ -2699,8 +2687,7 @@ export class WebhookHandler {
         `💡 **Tips for a helpful review:**\n` +
         `• Share specific details about course content\n` +
         `• Mention the teaching style and materials\n` +
-        `• Describe the workload and assignments\n` +
-        `• Give advice for future students`;
+        `• Describe the workload and assignments`;
 
       const keyboard = {
         inline_keyboard: [
@@ -3110,7 +3097,7 @@ export class WebhookHandler {
   private cleanupProcessingCallbacks(): void {
     const now = Date.now();
     const maxAge = 10000; // 10 seconds
-    
+
     for (const [key, timestamp] of this.processingCallbacks.entries()) {
       if (now - timestamp > maxAge) {
         this.processingCallbacks.delete(key);
@@ -3141,12 +3128,12 @@ export class WebhookHandler {
    */
   private isDataHeavyOperation(data: string): boolean {
     return (
-      data.startsWith('course_') ||
-      data.startsWith('category_') ||
-      data.startsWith('reviews_') ||
-      data.startsWith('my_reviews') ||
-      data.startsWith('browse_categories') ||
-      data.startsWith('courses_')
+      data.startsWith("course_") ||
+      data.startsWith("category_") ||
+      data.startsWith("reviews_") ||
+      data.startsWith("my_reviews") ||
+      data.startsWith("browse_categories") ||
+      data.startsWith("courses_")
     );
   }
 
@@ -3157,7 +3144,7 @@ export class WebhookHandler {
     await this.bot.sendMessage(
       chatId,
       "🔄 The service is temporarily busy. Please wait a moment and try again.\n\n" +
-      "If the problem persists, you can return to the main menu and try a different action.",
+        "If the problem persists, you can return to the main menu and try a different action.",
       {
         reply_markup: {
           inline_keyboard: [
@@ -3203,11 +3190,11 @@ export class WebhookHandler {
     const helpText =
       "🤖 PickYourCourses Bot Help\n\n" +
       "📚 Available commands:\n" +
-      "• /start - Start the bot and go to the main menu\n" +
+      "• /start - Display a welcome text\n" +
       "• /help - Show this help message\n\n" +
       "🎓 About this bot:\n" +
       "PickYourCourses helps École Polytechnique students share and read course reviews. " +
-      "You can browse reviews by category, post your own experiences, and vote on helpful reviews.\n\n" +
+      "You can browse reviews by category, post your own experiences, and up or down vote reviews.\n\n" +
       "❓ For support, contact Alexandre Bismuth (@alex_bsmth).";
 
     await this.bot.sendMessage(chatId, helpText, {
@@ -3954,7 +3941,7 @@ export class WebhookHandler {
         `• Course description\n` +
         `• Any other course information\n\n` +
         `Your request will be sent to an administrator for review. ` +
-        `Please provide clear details about what you'd like to change and why.`;
+        `Please provide clear details about what you'd like to change.`;
 
       const keyboard = UIComponents.createCourseEditInfoMenu(courseId);
 
@@ -4017,8 +4004,7 @@ export class WebhookHandler {
         `Please describe what you would like to change about this course. ` +
         `Be as specific as possible:\n\n` +
         `• What information needs to be updated?\n` +
-        `• What should it be changed to?\n` +
-        `• Why is this change needed?\n\n` +
+        `• What should it be changed to?\n\n` +
         `Type your request below:`;
 
       const keyboard = UIComponents.createCourseEditRequestMenu(courseId);
@@ -4087,7 +4073,6 @@ export class WebhookHandler {
         "🔔 Test message from PickYourCourses bot - admin messaging is working!";
 
       await this.bot.sendMessage(parseInt(adminUserId), testMessage);
-      console.log("Test admin message sent successfully");
     } catch (error) {
       console.error("Test admin message failed:", error);
     }
@@ -4169,33 +4154,19 @@ export class WebhookHandler {
 
       // Send to admin
       try {
-        console.log(`Attempting to send edit request to admin ${adminUserId}`);
-        console.log(`Admin message length: ${adminMessage.length}`);
-
         const adminChatId = parseInt(adminUserId);
-        console.log(`Parsed admin chat ID: ${adminChatId}`);
-
-        const result = await this.bot.sendMessage(adminChatId, adminMessage, {
+        await this.bot.sendMessage(adminChatId, adminMessage, {
           parse_mode: "Markdown",
         });
-
-        console.log(
-          "Successfully sent edit request to admin:",
-          result.message_id
-        );
       } catch (adminError) {
-        console.error("Failed to send edit request to admin:", adminError);
-        console.error("Admin message content:", adminMessage);
+        console.error("Failed to send admin message with markdown:",adminError);
 
         // Try sending without markdown parsing as fallback
         try {
-          console.log("Attempting to send without Markdown parsing...");
-          await this.bot.sendMessage(parseInt(adminUserId), adminMessage);
-          console.log(
-            "Successfully sent edit request to admin (without Markdown)"
-          );
+          const adminChatId = parseInt(adminUserId);
+          await this.bot.sendMessage(adminChatId, adminMessage);
         } catch (fallbackError) {
-          console.error("Fallback admin message also failed:", fallbackError);
+          console.error("CRITICAL: Unable to notify admin of important event", {adminUserId,messagePreview: adminMessage.substring(0, 100)});
         }
       }
 

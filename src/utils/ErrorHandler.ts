@@ -152,32 +152,20 @@ export class ErrorHandler {
     private static classifyStringError(errorString: string): { type: ErrorType; severity: ErrorSeverity } {
         const lowerError = errorString.toLowerCase();
 
-        if (lowerError.includes('authentication') || lowerError.includes('auth') || lowerError.includes('login')) {
-            return { type: ErrorType.AUTHENTICATION_ERROR, severity: ErrorSeverity.MEDIUM };
-        }
+        const errorPatterns = [
+            { patterns: ['authentication', 'auth', 'login'], type: ErrorType.AUTHENTICATION_ERROR, severity: ErrorSeverity.MEDIUM },
+            { patterns: ['permission', 'unauthorized', 'admin'], type: ErrorType.AUTHORIZATION_ERROR, severity: ErrorSeverity.MEDIUM },
+            { patterns: ['validation', 'invalid', 'format'], type: ErrorType.VALIDATION_ERROR, severity: ErrorSeverity.LOW },
+            { patterns: ['database', 'dynamodb'], type: ErrorType.DATABASE_ERROR, severity: ErrorSeverity.MEDIUM },
+            { patterns: ['too many failed attempts'], type: ErrorType.AUTHENTICATION_ERROR, severity: ErrorSeverity.HIGH },
+            { patterns: ['rate limit', 'too many'], type: ErrorType.RATE_LIMIT_ERROR, severity: ErrorSeverity.MEDIUM },
+            { patterns: ['timeout', 'expired'], type: ErrorType.TIMEOUT_ERROR, severity: ErrorSeverity.MEDIUM },
+        ];
 
-        if (lowerError.includes('permission') || lowerError.includes('unauthorized') || lowerError.includes('admin')) {
-            return { type: ErrorType.AUTHORIZATION_ERROR, severity: ErrorSeverity.MEDIUM };
-        }
-
-        if (lowerError.includes('validation') || lowerError.includes('invalid') || lowerError.includes('format')) {
-            return { type: ErrorType.VALIDATION_ERROR, severity: ErrorSeverity.LOW };
-        }
-
-        if (lowerError.includes('database') || lowerError.includes('dynamodb')) {
-            return { type: ErrorType.DATABASE_ERROR, severity: ErrorSeverity.MEDIUM };
-        }
-
-        if (lowerError.includes('too many failed attempts')) {
-            return { type: ErrorType.AUTHENTICATION_ERROR, severity: ErrorSeverity.HIGH };
-        }
-
-        if (lowerError.includes('rate limit') || lowerError.includes('too many')) {
-            return { type: ErrorType.RATE_LIMIT_ERROR, severity: ErrorSeverity.MEDIUM };
-        }
-
-        if (lowerError.includes('timeout') || lowerError.includes('expired')) {
-            return { type: ErrorType.TIMEOUT_ERROR, severity: ErrorSeverity.MEDIUM };
+        for (const { patterns, type, severity } of errorPatterns) {
+            if (patterns.some(pattern => lowerError.includes(pattern))) {
+                return { type, severity };
+            }
         }
 
         return { type: ErrorType.UNKNOWN_ERROR, severity: ErrorSeverity.LOW };
@@ -274,27 +262,20 @@ export class ErrorHandler {
             return false;
         }
 
-        // Specific retry rules by error type
-        switch (type) {
-            case ErrorType.DATABASE_ERROR:
-            case ErrorType.EXTERNAL_SERVICE_ERROR:
-            case ErrorType.NETWORK_ERROR:
-                return severity !== ErrorSeverity.HIGH;
+        // Define retryable error types
+        const retryableTypes = [ErrorType.DATABASE_ERROR, ErrorType.EXTERNAL_SERVICE_ERROR, ErrorType.NETWORK_ERROR];
+        const lowSeverityRetryableTypes = [ErrorType.RATE_LIMIT_ERROR, ErrorType.TIMEOUT_ERROR];
 
-            case ErrorType.RATE_LIMIT_ERROR:
-                return severity === ErrorSeverity.LOW;
-
-            case ErrorType.TIMEOUT_ERROR:
-                return severity === ErrorSeverity.LOW;
-
-            case ErrorType.AUTHENTICATION_ERROR:
-            case ErrorType.AUTHORIZATION_ERROR:
-            case ErrorType.VALIDATION_ERROR:
-                return false;
-
-            default:
-                return severity === ErrorSeverity.LOW;
+        if (retryableTypes.includes(type)) {
+            return severity !== ErrorSeverity.HIGH;
         }
+
+        if (lowSeverityRetryableTypes.includes(type)) {
+            return severity === ErrorSeverity.LOW;
+        }
+
+        // Non-retryable types: AUTHENTICATION_ERROR, AUTHORIZATION_ERROR, VALIDATION_ERROR
+        return false;
     }
 
     /**

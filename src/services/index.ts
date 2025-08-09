@@ -1,4 +1,6 @@
-// Service layer exports for the PickYourCourses Telegram bot
+/**
+ * Service layer exports for the PickYourCourses Telegram bot
+ */
 
 export * from './RateLimitService';
 export * from './CourseService';
